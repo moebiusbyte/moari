@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
 import { Search, Filter, Plus, TrendingUp, Calendar, DollarSign } from 'lucide-react';
 
+
 const SalesDashboard = () => {
-  const [showAlert, setShowAlert] = useState(false);
+
+  const [showFilterAlert, setFilterAlert] = useState(false);
+  const [showSaleAlert, setSaleAlert] = useState(false);
+
 
   const handleNovaVenda = () => {
-    setShowAlert(true);
-    setTimeout(() => setShowAlert(false), 3000);
+    setSaleAlert(true);
+    setTimeout(() => setSaleAlert(false), 3000);
+  };
+
+  const handleFiltros = () => {
+    setFilterAlert(true);
+    setTimeout(() => setFilterAlert(false), 3000);
   };
 
   return (
@@ -66,7 +75,9 @@ const SalesDashboard = () => {
               <Search className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
             </div>
             <div className="flex gap-2">
-              <button className="px-4 py-2 border rounded-lg flex items-center gap-2 hover:bg-gray-50">
+              <button 
+               onClick={handleFiltros}
+               className="px-4 py-2 border rounded-lg flex items-center gap-2 hover:bg-gray-50">
                 <Filter className="w-5 h-5" />
                 Filtros
               </button>
@@ -111,10 +122,15 @@ const SalesDashboard = () => {
           </div>
         </div>
 
-        {/* Alert */}
-        {showAlert && (
-          <div className="fixed bottom-15 right-34 p-4 bg-green-100 text-green-800 rounded-lg shadow-lg border border-green-200 animate-fade-in">
-            Nova venda iniciada com sucesso!
+        {showFilterAlert && (
+          <div className="fixed bottom-15 right-25 p-4 bg-green-100 text-green-800 rounded-lg shadow-lg border border-green-200 animate-fade-in">
+             Filtro aplicado com sucesso!
+          </div>
+        )}
+
+        {showSaleAlert && (
+          <div className="fixed bottom-15 right-25 p-4 bg-green-100 text-green-800 rounded-lg shadow-lg border border-green-200 animate-fade-in">
+             Nova venda abfdlksfdklsjfklds com sucesso!
           </div>
         )}
       </div>
