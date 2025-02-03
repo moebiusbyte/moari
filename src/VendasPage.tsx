@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Search, Filter, Plus, TrendingUp, Calendar, DollarSign } from 'lucide-react';
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const SalesDashboard = () => {
   const [showAlert, setShowAlert] = useState(false);
 
   const handleNovaVenda = () => {
     setShowAlert(true);
-    setTimeout(() => setShowAlert(false), 3000); // Esconde após 3 segundos
+    setTimeout(() => setShowAlert(false), 3000);
   };
 
   return (
@@ -114,11 +113,9 @@ const SalesDashboard = () => {
 
         {/* Alert */}
         {showAlert && (
-          <Alert className="mt-4">
-            <AlertDescription>
-              Nova venda iniciada com sucesso!
-            </AlertDescription>
-          </Alert>
+          <div className="fixed bottom-15 right-34 p-4 bg-green-100 text-green-800 rounded-lg shadow-lg border border-green-200 animate-fade-in">
+            Nova venda iniciada com sucesso!
+          </div>
         )}
       </div>
     </div>
