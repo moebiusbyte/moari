@@ -26,6 +26,9 @@ dependencies:
   clsx:
     specifier: ^2.1.0
     version: 2.1.1
+  dialog:
+    specifier: 0.3.1
+    version: 0.3.1
   lucide-react:
     specifier: ^0.263.1
     version: 0.263.1(react@18.2.0)
@@ -35,6 +38,9 @@ dependencies:
   react:
     specifier: 18.2.0
     version: 18.2.0
+  react-dialogbox:
+    specifier: 2.0.9
+    version: 2.0.9
   react-dom:
     specifier: 18.2.0
     version: 18.2.0(react@18.2.0)
@@ -1360,6 +1366,10 @@ packages:
       clsx: 2.1.1
     dev: false
 
+  /classnames@2.5.1:
+    resolution: {integrity: sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow==}
+    dev: false
+
   /clsx@2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
@@ -1543,6 +1553,11 @@ packages:
       acorn-node: 1.8.2
       defined: 1.0.1
       minimist: 1.2.8
+    dev: false
+
+  /dialog@0.3.1:
+    resolution: {integrity: sha512-RYndSaXW/tYkfVbUKmyQzerHH080Pis7YabDxIHXRdYO6yo9/VqTIhPRB5RpoHwYlixeiUOvJCF7di+lmBaH6w==}
+    hasBin: true
     dev: false
 
   /didyoumean@1.2.2:
@@ -2703,6 +2718,12 @@ packages:
   /quick-lru@5.1.1:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
     engines: {node: '>=10'}
+    dev: false
+
+  /react-dialogbox@2.0.9:
+    resolution: {integrity: sha512-qsrZE42li6CJO1tbDKX2j3ZrSYVC4zJyNtUmA8YJxgbQulCexVNpL8JU1f2lzQZFvo7sSXwY9VD1YuusvWFZ/w==}
+    dependencies:
+      classnames: 2.5.1
     dev: false
 
   /react-dom@18.2.0(react@18.2.0):

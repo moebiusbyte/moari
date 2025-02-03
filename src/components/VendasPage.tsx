@@ -1,21 +1,46 @@
 import React, { useState } from 'react';
-import { Search, Filter, Plus, TrendingUp, Calendar, DollarSign } from 'lucide-react';
+import { Search, Filter, Plus, TrendingUp, Calendar, DollarSign, X } from 'lucide-react';
+import FormularioVenda from "./FormularioVenda";
 
+
+const Modal = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-6 max-w-xl w-full mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">{title}</h2>
+          <button 
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-full"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const SalesDashboard = () => {
 
   const [showFilterAlert, setFilterAlert] = useState(false);
   const [showSaleAlert, setSaleAlert] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
 
   const handleNovaVenda = () => {
-    setSaleAlert(true);
-    setTimeout(() => setSaleAlert(false), 3000);
+    setIsModalOpen(true);
   };
 
   const handleFiltros = () => {
+    //mostra as mensagens
     setFilterAlert(true);
     setTimeout(() => setFilterAlert(false), 3000);
+
   };
 
   return (
@@ -49,18 +74,20 @@ const SalesDashboard = () => {
             </div>
           </div>
 
-          {/* Meta Mensal */}
-          <div className="bg-white rounded-lg p-4 shadow-md ring-1 ring-black ring-opacity-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <Calendar className="w-6 h-6 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-gray-600 text-sm">Meta Mensal</p>
-                <p className="text-xl font-semibold">85%</p>
+          {isVisible && (
+            /* Meta Mensal */
+            <div className="bg-white rounded-lg p-4 shadow-md ring-1 ring-black ring-opacity-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <Calendar className="w-6 h-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">Meta Mensal</p>
+                  <p className="text-xl font-semibold">85%</p>
+                </div>
               </div>
             </div>
-          </div>
+          )} 
         </div>
 
         {/* Search and Actions */}
@@ -122,6 +149,24 @@ const SalesDashboard = () => {
           </div>
         </div>
 
+
+        {/* Modal de Nova Venda */}
+        <Modal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)}
+          title="Nova Venda"
+        >
+          <FormularioVenda 
+            onClose={() => setIsModalOpen(false)}
+            onSave={() => {
+              setSaleAlert(true);
+              setTimeout(() => setSaleAlert(false), 3000);
+              setIsModalOpen(false);
+            }}
+          />
+        </Modal>
+
+        {/* Alertas */}
         {showFilterAlert && (
           <div className="fixed bottom-15 right-25 p-4 bg-green-100 text-green-800 rounded-lg shadow-lg border border-green-200 animate-fade-in">
              Filtro aplicado com sucesso!
@@ -130,10 +175,12 @@ const SalesDashboard = () => {
 
         {showSaleAlert && (
           <div className="fixed bottom-15 right-25 p-4 bg-green-100 text-green-800 rounded-lg shadow-lg border border-green-200 animate-fade-in">
-             Nova venda abfdlksfdklsjfklds com sucesso!
+             Nova venda criada com sucesso!
           </div>
         )}
       </div>
+
+
     </div>
   );
 };
