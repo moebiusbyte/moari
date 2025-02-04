@@ -7,8 +7,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     https: {
-      key: fs.readFileSync(path.join(__dirname, "certs", "key.pem")),
-      cert: fs.readFileSync(path.join(__dirname, "certs", "cert.pem")),
+      key: fs.readFileSync(path.join(__dirname, "server", "certs", "key.pem")),
+      cert: fs.readFileSync(
+        path.join(__dirname, "server", "certs", "cert.pem")
+      ),
       rejectUnauthorized: false,
     },
     proxy: {
