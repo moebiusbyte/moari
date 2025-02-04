@@ -1,0 +1,137 @@
+// src/components/LoginPage.tsx
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+
+// Interface para tipar a resposta da API
+interface LoginResponse {
+  token: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
+const LoginPage = () => {
+  // Estados para controlar os campos do formulário e erros
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  // Hooks para navegação e gerenciamento de autenticação
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
+
+  // Função que realiza o login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(""); // Limpa mensagens de erro anteriores
+
+    try {
+      // Realiza a requisição para o servidor de autenticação
+      const response = await fetch("http://localhost:3001/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email, // email digitado pelo usuário
+          password, // senha digitada pelo usuário
+        }),
+      });
+
+      // Se a resposta não for ok (status 200-299), lança um erro
+      if (!response.ok) {
+        throw new Error("Credenciais inválidas");
+      }
+
+      // Converte a resposta para JSON
+      const data: LoginResponse = await response.json();
+
+      // Armazena o token e informações do usuário no localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      // Atualiza o contexto de autenticação com os dados do usuário
+      setUser(data.user);
+
+      // Redireciona para o dashboard após login bem-sucedido
+      navigate("/dashboard");
+    } catch (err) {
+      // Em caso de erro, exibe mensagem para o usuário
+      setError("Email ou senha inválidos");
+    }
+  };
+
+  // Interface do formulário de login
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-md">
+        <div>
+          <h2 className="text-center text-3xl font-bold text-gray-900">
+            MoAri
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Faça login para acessar o sistema
+          </p>
+        </div>
+
+        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+          {/* Exibe mensagem de erro se houver */}
+          {error && (
+            <div className="text-red-500 text-sm text-center">{error}</div>
+          )}
+
+          <div className="space-y-4">
+            {/* Campo de email */}
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            {/* Campo de senha */}
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Senha
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Botão de login */}
+          <button
+            type="submit"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Entrar
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default LoginPage;

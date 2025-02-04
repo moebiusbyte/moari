@@ -1,7 +1,18 @@
+// App.tsx
 import React from "react";
-import VendasPage from "./components/VendasPage";
+import { BrowserRouter } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
 import Layout from "./Layout";
 
 export default function App() {
-  return <Layout />;
+  return (
+    // AuthProvider envolve toda a aplicação para que o estado de autenticação
+    // esteja disponível em todos os componentes
+    <AuthProvider>
+      {/* BrowserRouter deve estar fora do Layout mas dentro do AuthProvider */}
+      <BrowserRouter>
+        <Layout />
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
