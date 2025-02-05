@@ -30,14 +30,14 @@ const LoginPage = () => {
 
     try {
       // Realiza a requisição para o servidor de autenticação
-      const response = await fetch("http://localhost:3001/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email, // email digitado pelo usuário
-          password, // senha digitada pelo usuário
+          email,
+          password,
         }),
       });
 
@@ -128,6 +128,16 @@ const LoginPage = () => {
           >
             Entrar
           </button>
+
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={() => navigate("/signup")}
+              className="text-sm text-blue-600 hover:text-blue-500"
+            >
+              Não tem uma conta? Registre-se
+            </button>
+          </div>
         </form>
       </div>
     </div>

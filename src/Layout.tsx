@@ -25,6 +25,7 @@ import VendasPage from "./components/VendasPage";
 import ProductsPage from "./components/ProductsPage";
 import FornecedoresPage from "./components/FornecedoresPage";
 import RelatoriosPage from "./components/RelatoriosPage";
+import SignUpPage from "./components/SignUpPage";
 
 // Componente que controla o acesso às rotas protegidas
 const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({
@@ -81,6 +82,7 @@ const Layout = () => {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );

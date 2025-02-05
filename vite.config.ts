@@ -1,24 +1,32 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import fs from "fs";
-import path from "path";
 
 export default defineConfig({
   plugins: [react()],
   server: {
-    https: {
-      key: fs.readFileSync(path.join(__dirname, "server", "certs", "key.pem")),
-      cert: fs.readFileSync(
-        path.join(__dirname, "server", "certs", "cert.pem")
-      ),
-      rejectUnauthorized: false,
-    },
+    host: true,
+    allowedHosts: ["v3rks3-5173.csb.app", ".csb.app", "localhost"],
     proxy: {
       "/api": {
-        target: "https://localhost:3001",
-        secure: false,
+        target: "http://localhost:3001",
         changeOrigin: true,
+        secure: false,
         rewrite: (path) => path.replace(/^\/api/, ""),
+        configure: (proxy, _options) => {
+          proxy.on("error", (err, _req, _res) => {
+            console.log("proxy error", err);
+          });
+          proxy.on("proxyReq", (proxyReq, req, _res) => {
+            console.log("Sending Request to the Target:", req.method, req.url);
+          });
+          proxy.on("proxyRes", (proxyRes, req, _res) => {
+            console.log(
+              "Received Response from the Target:",
+              proxyRes.statusCode,
+              req.url
+            );
+          });
+        },
       },
     },
   },
