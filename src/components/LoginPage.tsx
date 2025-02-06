@@ -23,15 +23,15 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { setUser } = useAuth();
 
-  // Função que realiza o login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(""); // Limpa mensagens de erro anteriores
-
+  
     try {
       // Realiza a requisição para o servidor de autenticação
       const response = await fetch("/api/auth/login", {
         method: "POST",
+        credentials: "include", // Adicionando esta linha
         headers: {
           "Content-Type": "application/json",
         },
@@ -40,27 +40,34 @@ const LoginPage = () => {
           password,
         }),
       });
-
-      // Se a resposta não for ok (status 200-299), lança um erro
+  
+      // Adicionar log para debug
+      console.log("Status da resposta:", response.status);
+  
+      // Se a resposta não for ok (status 200-299), tenta ler o erro
       if (!response.ok) {
-        throw new Error("Credenciais inválidas");
+        const errorData = await response.json().catch(() => null);
+        console.log("Erro recebido:", errorData);
+        throw new Error(errorData?.message || "Credenciais inválidas");
       }
-
+  
       // Converte a resposta para JSON
       const data: LoginResponse = await response.json();
-
+      console.log("Login bem-sucedido:", data);
+  
       // Armazena o token e informações do usuário no localStorage
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-
+  
       // Atualiza o contexto de autenticação com os dados do usuário
       setUser(data.user);
-
+  
       // Redireciona para o dashboard após login bem-sucedido
       navigate("/dashboard");
     } catch (err) {
+      console.error("Erro durante o login:", err);
       // Em caso de erro, exibe mensagem para o usuário
-      setError("Email ou senha inválidos");
+      setError(err instanceof Error ? err.message : "Email ou senha inválidos");
     }
   };
 
