@@ -26,21 +26,27 @@ const SignUpPage = () => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-
+  
     try {
-      // Validações
+      console.log("1. Iniciando processo de registro com dados:", {
+        name: formData.name,
+        email: formData.email,
+        passwordLength: formData.password.length
+      });
+  
       if (formData.password.length < 6) {
         throw new Error("A senha deve ter pelo menos 6 caracteres");
       }
-
+  
       if (formData.password !== formData.confirmPassword) {
         throw new Error("As senhas não conferem");
       }
-
-      console.log("Iniciando registro...");
-
+  
+      console.log("2. Iniciando chamada para /api/auth/register");
+      
       const response = await fetch("/api/auth/register", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -49,10 +55,16 @@ const SignUpPage = () => {
           email: formData.email,
           password: formData.password,
         }),
+      }).catch(error => {
+        console.error("3. Erro na chamada fetch:", error);
+        throw error;
       });
-
-      console.log("Status da resposta:", response.status);
-
+  
+      console.log("4. Resposta recebida:", {
+        status: response.status,
+        statusText: response.statusText
+      });
+  
       // Se a resposta não for ok, tenta ler o erro
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -67,6 +79,7 @@ const SignUpPage = () => {
       console.log("Iniciando login automático...");
       const loginResponse = await fetch("/api/auth/login", {
         method: "POST",
+        credentials: "include", // Adicione esta linha
         headers: {
           "Content-Type": "application/json",
         },
@@ -75,7 +88,7 @@ const SignUpPage = () => {
           password: formData.password,
         }),
       });
-
+      
       if (!loginResponse.ok) {
         const errorData = await loginResponse.json().catch(() => null);
         throw new Error(
