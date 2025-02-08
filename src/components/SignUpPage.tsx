@@ -212,16 +212,6 @@ const SignUpPage = () => {
               {isLoading ? "Criando conta..." : "Criar conta"}
             </button>
           </div>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => navigate("/login")}
-              className="text-sm text-blue-600 hover:text-blue-500"
-            >
-              Já tem uma conta? Faça login
-            </button>
-          </div>
         </form>
       </div>
     </div>
