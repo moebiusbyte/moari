@@ -26,6 +26,8 @@ import ProductsPage from "./components/ProductsPage";
 import FornecedoresPage from "./components/FornecedoresPage";
 import RelatoriosPage from "./components/RelatoriosPage";
 import SignUpPage from "./components/SignUpPage";
+import Saudacao from "./components/Saudacao";
+import DataAtual from "./components/DataAtual";
 
 // Componente que controla o acesso às rotas protegidas
 const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({
@@ -129,8 +131,7 @@ const Layout = () => {
               <Link
                 key={index}
                 to={item.path}
-                className="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-              >
+                className="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600">
                 <item.icon size={20} />
                 {isSidebarOpen && <span className="ml-3">{item.text}</span>}
               </Link>
@@ -138,8 +139,7 @@ const Layout = () => {
             {/* Botão de logout */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center px-4 py-3 mt-4 text-red-600 hover:bg-red-50"
-            >
+              className="w-full flex items-center px-4 py-3 mt-4 text-red-600 hover:bg-red-50">
               <LogOut size={20} />
               {isSidebarOpen && <span className="ml-3">Sair</span>}
             </button>
@@ -155,28 +155,22 @@ const Layout = () => {
             {/* Rotas protegidas da aplicação */}
             <Route
               path="/dashboard"
-              element={<PrivateRoute element={<Dashboard />} />}
-            />
+              element={<PrivateRoute element={<Dashboard />} />}/>
             <Route
               path="/produtos"
-              element={<PrivateRoute element={<ProductsPage />} />}
-            />
+              element={<PrivateRoute element={<ProductsPage />} />}/>
             <Route
               path="/fornecedores"
-              element={<PrivateRoute element={<FornecedoresPage />} />}
-            />
+              element={<PrivateRoute element={<FornecedoresPage />} />}/>
             <Route
               path="/vendas"
-              element={<PrivateRoute element={<VendasPage />} />}
-            />
+              element={<PrivateRoute element={<VendasPage />} />}/>
             <Route
               path="/relatorios"
-              element={<PrivateRoute element={<RelatoriosPage />} />}
-            />
+              element={<PrivateRoute element={<RelatoriosPage />} />}/>
             <Route
               path="/config"
-              element={<PrivateRoute element={<Configuracoes />} />}
-            />
+              element={<PrivateRoute element={<SignUpPage />} />}/>
 
             {/* Rota de login */}
             <Route path="/login" element={<LoginPage />} />
