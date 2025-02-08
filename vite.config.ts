@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
-    allowedHosts: ["v3rks3-5173.csb.app", ".csb.app", "localhost"],
+    allowedHosts: ["v3rks3-5173.csb.app", ".csb.app", "localhost", "127.0.0.1"],
     proxy: {
       "/api": {
         target: "http://localhost:3001", // Voltando para localhost
@@ -14,15 +14,15 @@ export default defineConfig({
         ws: true, // Adicionando suporte a WebSocket
         rewrite: (path) => path.replace(/^\/api/, ""),
         configure: (proxy, options) => {
-          proxy.on('error', (err, req, res) => {
-            console.log('proxy error', err);
-            console.log('proxy options', options);
+          proxy.on("error", (err, req, res) => {
+            console.log("proxy error", err);
+            console.log("proxy options", options);
             // Tentar reconectar em caso de erro
-            if (err.code === 'ECONNREFUSED') {
-              console.log('Tentando reconectar...');
+            if (err.code === "ECONNREFUSED") {
+              console.log("Tentando reconectar...");
             }
           });
-        }
+        },
       },
     },
   },
