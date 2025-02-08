@@ -3,6 +3,15 @@
         "./src/**/*"
     ],
     "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "@app/*": ["./app/*"],
+            "@assets/*": ["./assets/*"],
+            "@components/*": ["./components/*"],
+            "@styles/*": ["./styles/*"],
+            "@utils/*": ["./utils/*"],
+            "@/*": ["./src/*"]
+          }
         "strict": true,
         "esModuleInterop": true,
         "lib": [
