@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcrypt";
 import productsRoutes from './routes/productRoutes';
-import { setupDatabase } from '../database';
+import { pool, setupDatabase } from '../database';
 
 dotenv.config();
 

@@ -1,28 +1,43 @@
-import express from 'express';
-import { neon, Pool } from '@neondatabase/serverless';
-import multer from 'multer';
-import { v4 as uuidv4 } from 'uuid';
-import dotenv from 'dotenv';
+// src/routes/productRoutes.ts
+import express, { Router } from "express";
+import { Pool } from "pg";
+import multer from "multer";
+import { v4 as uuidv4 } from "uuid";
+import dotenv from "dotenv";
 
-dotenv.config({ path: '../.env' });
+dotenv.config({ path: "../.env" });
 
-const router = express.Router();
-const sql = neon(process.env.DATABASE_URL!);
+const router: Router = express.Router();
 
 // Criar uma única instância do pool de conexões
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-
-// Configuração do multer para upload de imagens
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
-  }
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
+// Configuração do multer para upload de imagens
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+});
+
+// Handler de erro para queries do banco
+const handleDatabaseError = (error: any, res: express.Response) => {
+  console.error("Database error:", error);
+  res.status(500).json({
+    error: "Erro interno do servidor",
+    details: process.env.NODE_ENV === "development" ? error.message : undefined,
+  });
+};
+
 // Listar produtos com paginação e filtros
-router.get('/products', async (req, res, next) => {
+router.get("/products", async (req, res) => {
+  const client = await pool.connect();
   try {
     const { page = 1, limit = 10, search, category, quality } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
@@ -39,24 +54,28 @@ router.get('/products', async (req, res, next) => {
 
     const whereConditions = [];
     const params = [];
-    
+
     if (search) {
-      whereConditions.push(`(p.name ILIKE $${params.length + 1} OR p.code ILIKE $${params.length + 1})`);
+      whereConditions.push(
+        `(p.name ILIKE $${params.length + 1} OR p.code ILIKE $${
+          params.length + 1
+        })`
+      );
       params.push(`%${search}%`);
     }
-    
+
     if (category) {
       whereConditions.push(`p.category = $${params.length + 1}`);
       params.push(category);
     }
-    
+
     if (quality) {
       whereConditions.push(`p.quality = $${params.length + 1}`);
       params.push(quality);
     }
 
     if (whereConditions.length > 0) {
-      baseQuery += ` WHERE ${whereConditions.join(' AND ')}`;
+      baseQuery += ` WHERE ${whereConditions.join(" AND ")}`;
     }
 
     baseQuery += `
@@ -65,35 +84,42 @@ router.get('/products', async (req, res, next) => {
       LIMIT $${params.length + 1}
       OFFSET $${params.length + 2}
     `;
-    
+
     params.push(limit, offset);
 
-    const { rows } = await pool.query(baseQuery, params);
-    res.json(rows);
+    const result = await client.query(baseQuery, params);
+    res.json(result.rows);
   } catch (error) {
-    console.error('Erro na consulta:', error);
-    next(error);
+    handleDatabaseError(error, res);
+  } finally {
+    client.release();
   }
 });
-  
+
 // Cadastrar novo produto
-router.post('/products', upload.array('images', 5), async (req, res, next) => {
+router.post("/products", upload.array("images", 5), async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query("BEGIN");
+
+    console.log("Corpo da requisição:", req.body);
+    console.log("Arquivos:", req.files);
+
     const {
       code,
       name,
       category,
       format,
       quality,
-      materialType,
-      usageMode,
+      material_type,
+      usage_mode,
       size,
       origin,
       warranty,
-      basePrice,
-      profitMargin,
+      base_price,
+      profit_margin,
       description,
-      materials
+      materials,
     } = req.body;
 
     // Inserir produto
@@ -102,49 +128,60 @@ router.post('/products', upload.array('images', 5), async (req, res, next) => {
         code, name, category, format, quality, material_type,
         usage_mode, size, origin, warranty, base_price,
         profit_margin, description
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10, $11,
-        $12, $13
-      )
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
     `;
 
-    const [product] = await sql(insertQuery, [
-      code, name, category, format, quality, materialType,
-      usageMode, size, origin, warranty, basePrice,
-      profitMargin, description
+    const productResult = await client.query(insertQuery, [
+      code,
+      name,
+      category,
+      format,
+      quality,
+      material_type,
+      usage_mode,
+      size,
+      origin,
+      warranty,
+      base_price,
+      profit_margin,
+      description,
     ]);
 
-    // Inserir materiais
-    if (materials && materials.length > 0) {
-      const materialsList = JSON.parse(materials);
-      const materialValues = materialsList.map((material: string) => 
-        `(${product.id}, '${material}')`
-      ).join(',');
+    const product = productResult.rows[0];
 
-      await sql(`
-        INSERT INTO moari.product_materials (product_id, material_name)
-        VALUES ${materialValues}
-      `);
+    // Inserir materiais
+    if (materials) {
+      const materialsList = Array.isArray(materials)
+        ? materials
+        : JSON.parse(materials);
+      for (const material of materialsList) {
+        await client.query(
+          "INSERT INTO moari.product_materials (product_id, material_name) VALUES ($1, $2)",
+          [product.id, material]
+        );
+      }
     }
 
     // Processar e salvar imagens
     const files = req.files as Express.Multer.File[];
     if (files && files.length > 0) {
-      const imageValues = files.map((_, index) => 
-        `(${product.id}, 'https://storage.example.com/${uuidv4()}.jpg', ${index})`
-      ).join(',');
-
-      await sql(`
-        INSERT INTO moari.product_images (product_id, image_url, order_index)
-        VALUES ${imageValues}
-      `);
+      for (let i = 0; i < files.length; i++) {
+        const imageUrl = `https://storage.example.com/${uuidv4()}.jpg`;
+        await client.query(
+          "INSERT INTO moari.product_images (product_id, image_url, order_index) VALUES ($1, $2, $3)",
+          [product.id, imageUrl, i]
+        );
+      }
     }
 
+    await client.query("COMMIT");
     res.status(201).json(product);
   } catch (error) {
-    next(error);
+    await client.query("ROLLBACK");
+    handleDatabaseError(error, res);
+  } finally {
+    client.release();
   }
 });
 

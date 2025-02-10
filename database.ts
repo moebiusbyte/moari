@@ -1,83 +1,54 @@
-import { neon, neonConfig } from '@neondatabase/serverless';
-import WebSocket from 'isomorphic-ws';
+import { Pool } from 'pg';
 import path from 'path';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-// Configuração do WebSocket
-neonConfig.webSocketConstructor = WebSocket;
-// Forçar o uso de WSS (WebSocket Secure)
-neonConfig.useSecureWebSocket = true;
-
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL não está definida');
 }
 
-// Criar conexão usando neon com retry manual
-async function createNeonConnection() {
-  let attempts = 0;
-  const maxAttempts = 5;
-  
-  while (attempts < maxAttempts) {
-    try {
-      console.log(`Tentativa ${attempts + 1} de conectar ao banco de dados...`);
-      const connection = neon(process.env.DATABASE_URL!);
-      // Teste a conexão
-      await connection`SELECT 1 as test`;
-      console.log("Conexão estabelecida com sucesso!");
-      return connection;
-    } catch (error) {
-      attempts++;
-      console.error(`Tentativa ${attempts} falhou:`, error);
-      if (attempts === maxAttempts) {
-        console.error('Todas as tentativas de conexão falharam');
-        throw error;
-      }
-      // Espera um pouco antes de tentar novamente (tempo aumenta a cada tentativa)
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
-    }
-  }
-  throw new Error('Não foi possível estabelecer conexão com o banco de dados');
-}
+// Criar pool de conexões
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // necessário para Neon DB
+  },
+  max: 5, // máximo de conexões no pool
+  idleTimeoutMillis: 30000 // tempo máximo que uma conexão pode ficar ociosa
+});
 
-// Inicializa a conexão com o valor padrão
-let sql = neon(process.env.DATABASE_URL);
-
-// Função para inicializar a conexão com retry
-export async function initializeDatabase() {
-  try {
-    sql = await createNeonConnection();
-  } catch (error) {
-    console.error("Erro ao inicializar conexão com o banco:", error);
-    throw error;
-  }
-}
+// Evento para logs de erro
+pool.on('error', (err) => {
+  console.error('Erro inesperado no pool de conexões:', err);
+});
 
 export async function setupDatabase() {
   try {
     console.log("Iniciando setup do banco de dados...");
-    
-    // Inicializa a conexão com retry
-    await initializeDatabase();
 
-    // Criar schema
-    await sql`CREATE SCHEMA IF NOT EXISTS moari`;
-    console.log("Schema verificado/criado com sucesso");
+    // Testar conexão
+    const client = await pool.connect();
+    try {
+      console.log("Conexão estabelecida com sucesso!");
+      
+      // Criar schema
+      await client.query('CREATE SCHEMA IF NOT EXISTS moari');
+      console.log("Schema verificado/criado com sucesso");
 
-    // Criar tabela users
-    await sql`
-      CREATE TABLE IF NOT EXISTS moari.users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )`;
-    console.log("Tabela users verificada/criada com sucesso");
+      // Criar tabela users
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS moari.users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )`);
+      console.log("Tabela users verificada/criada com sucesso");
 
     // Criar tabela products
-    await sql`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS moari.products (
         id SERIAL PRIMARY KEY,
         code VARCHAR(50) UNIQUE NOT NULL,
@@ -96,59 +67,59 @@ export async function setupDatabase() {
         status VARCHAR(50) DEFAULT 'active',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )`;
+      )`);
     console.log("Tabela products verificada/criada com sucesso");
 
     // Criar tabela product_materials
-    await sql`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS moari.product_materials (
         id SERIAL PRIMARY KEY,
         product_id INTEGER REFERENCES moari.products(id) ON DELETE CASCADE,
         material_name VARCHAR(100) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )`;
+      )`);
     console.log("Tabela product_materials verificada/criada com sucesso");
 
     // Criar tabela product_images
-    await sql`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS moari.product_images (
         id SERIAL PRIMARY KEY,
         product_id INTEGER REFERENCES moari.products(id) ON DELETE CASCADE,
         image_url VARCHAR(500) NOT NULL,
         order_index INTEGER NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )`;
+      )`);
     console.log("Tabela product_images verificada/criada com sucesso");
 
     // Criar índices
-    await sql`CREATE INDEX IF NOT EXISTS idx_products_code ON moari.products(code)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_products_category ON moari.products(category)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_products_status ON moari.products(status)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_product_materials_product_id ON moari.product_materials(product_id)`;
-    await sql`CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON moari.product_images(product_id)`;
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_products_code ON moari.products(code)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_products_category ON moari.products(category)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_products_status ON moari.products(status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_product_materials_product_id ON moari.product_materials(product_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON moari.product_images(product_id)`);
     console.log("Índices verificados/criados com sucesso");
 
     // Criar função para atualizar updated_at
-    await sql`
+    await client.query(`
       CREATE OR REPLACE FUNCTION update_updated_at_column()
       RETURNS TRIGGER AS $$
       BEGIN
           NEW.updated_at = CURRENT_TIMESTAMP;
           RETURN NEW;
       END;
-      $$ language 'plpgsql'`;
+      $$ language 'plpgsql'`);
 
     // Criar trigger para updated_at
-    await sql`DROP TRIGGER IF EXISTS update_products_updated_at ON moari.products`;
-    await sql`
+    await client.query(`DROP TRIGGER IF EXISTS update_products_updated_at ON moari.products`);
+    await client.query(`
       CREATE TRIGGER update_products_updated_at
           BEFORE UPDATE ON moari.products
           FOR EACH ROW
-          EXECUTE FUNCTION update_updated_at_column()`;
+          EXECUTE FUNCTION update_updated_at_column()`);
     console.log("Função e trigger para updated_at criados com sucesso");
 
     // Criar função para validação de preço
-    await sql`
+    await client.query(`
       CREATE OR REPLACE FUNCTION validate_product_price()
       RETURNS TRIGGER AS $$
       BEGIN
@@ -162,16 +133,20 @@ export async function setupDatabase() {
           
           RETURN NEW;
       END;
-      $$ language 'plpgsql'`;
+      $$ language 'plpgsql'`);
 
     // Criar trigger para validação de preço
-    await sql`DROP TRIGGER IF EXISTS validate_product_price_trigger ON moari.products`;
-    await sql`
+    await client.query(`DROP TRIGGER IF EXISTS validate_product_price_trigger ON moari.products`);
+    await client.query(`
       CREATE TRIGGER validate_product_price_trigger
           BEFORE INSERT OR UPDATE ON moari.products
           FOR EACH ROW
-          EXECUTE FUNCTION validate_product_price()`;
+          EXECUTE FUNCTION validate_product_price()`);
     console.log("Função e trigger para validação de preços criados com sucesso");
+
+    } finally {
+      client.release();
+    }
 
     console.log("Setup do banco de dados concluído com sucesso!");
   } catch (error) {
@@ -187,11 +162,12 @@ export async function query(text: string, params?: any[]) {
   const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
+    const client = await pool.connect();
     try {
-      const res = await sql(text, params);
+      const res = await client.query(text, params);
       const duration = Date.now() - start;
-      console.log('Query executada:', { text, duration, rows: res.length });
-      return res;
+      console.log('Query executada:', { text, duration, rows: res.rowCount });
+      return res.rows;
     } catch (error) {
       attempts++;
       console.error(`Tentativa ${attempts} falhou:`, error);
@@ -201,8 +177,10 @@ export async function query(text: string, params?: any[]) {
       }
       // Espera um pouco antes de tentar novamente
       await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+    } finally {
+      client.release();
     }
   }
 }
 
-export { sql };
+export { pool };

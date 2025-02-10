@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Search, Plus, Filter, Edit, Trash2, Download } from "lucide-react";
 import CadastroProdutos from "./CadastroProdutos";
-import api from '../../server/api/axiosConfig';
-import type { Product } from '../types/product';
+import api from "../../server/api/axiosConfig";
+import type { Product } from "../types/product";
 
 const ProductsPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -44,21 +44,21 @@ const ProductsPage = () => {
     console.log("Novo estado do modal:", true);
   };
 
-const fetchProducts = async () => {
+  const fetchProducts = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '10',
+        limit: "10",
         search: searchTerm,
         category: filtroAvancado.categoria,
-        quality: filtroAvancado.qualidade
+        quality: filtroAvancado.qualidade,
       });
 
       const response = await api.get(`/products?${params}`);
       setProducts(response.data);
     } catch (error) {
-      console.error('Erro ao buscar produtos:', error);
+      console.error("Erro ao buscar produtos:", error);
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ const fetchProducts = async () => {
   const handleSaveProduto = async (produto: any, imagens: File[]) => {
     try {
       const formData = new FormData();
-      
+
       // Mapear campos do formulário para a API
       const apiData = {
         code: produto.codigo,
@@ -87,33 +87,42 @@ const fetchProducts = async () => {
         base_price: produto.precoBase,
         profit_margin: produto.margemLucro,
         description: produto.descricao,
-        materials: produto.materiaisComponentes
+        materials: produto.materiaisComponentes,
       };
 
       // Adicionar dados do produto
       Object.entries(apiData).forEach(([key, value]) => {
-        if (key === 'materials') {
-          formData.append(key, JSON.stringify(value));
-        } else if (value !== undefined && value !== null) {
-          formData.append(key, value.toString());
+        if (value !== undefined && value !== null) {
+          if (key === "materials") {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, value.toString());
+          }
         }
       });
 
       // Adicionar imagens
-      imagens.forEach((imagem) => {
-        formData.append('images', imagem);
+      imagens.forEach((imagem, index) => {
+        formData.append(`images`, imagem);
       });
 
-      await api.post('/products', formData, {
+      console.log("Enviando dados:", {
+        url: "/products",
+        formData: Object.fromEntries(formData.entries()),
+      });
+
+      const response = await api.post("/products", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
 
+      console.log("Resposta:", response.data);
       await fetchProducts();
       setIsModalOpen(false);
     } catch (error) {
-      console.error('Erro ao salvar produto:', error);
+      console.error("Erro ao salvar produto:", error);
+      // Aqui você pode adicionar um toast ou notificação de erro
     }
   };
 
@@ -189,8 +198,8 @@ const fetchProducts = async () => {
         </select>
       </div>
 
-       {/* Tabela de Produtos */}
-       <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* Tabela de Produtos */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -256,19 +265,19 @@ const fetchProducts = async () => {
                       R$ {Number(product.base_price).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {/* Implementar estoque depois */}
-                      -
+                      {/* Implementar estoque depois */}-
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {/* Implementar fornecedor depois */}
-                      -
+                      {/* Implementar fornecedor depois */}-
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        product.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}>
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          product.status === "active"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
                         {product.status === "active" ? "Ativo" : "Inativo"}
                       </span>
                     </td>
