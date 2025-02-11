@@ -16,28 +16,6 @@ const ProductsPage = () => {
     origem: "",
   });
 
-  // Dados de exemplo expandidos
-  const produtos = [
-    {
-      id: 1,
-      codigo: "CLR-001",
-      nome: "Colar Pérolas Delicado",
-      categoria: "Colares",
-      preco: 159.9,
-      precoBase: 80.0,
-      margemLucro: 100,
-      estoque: 15,
-      fornecedor: "Joias Elegance",
-      qualidade: "Alta",
-      origem: "Nacional",
-      status: "Ativo",
-      materiaisComponentes: ["Pérola", "Metal banhado a ouro"],
-      formato: "Gota",
-      ultimaAtualizacao: "02/02/2025",
-    },
-    // ... outros produtos
-  ];
-
   const handleNewProduct = () => {
     console.log("Estado atual do modal:", isModalOpen);
     setIsModalOpen(true);
@@ -217,10 +195,10 @@ const ProductsPage = () => {
                   Qualidade
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Preço
+                  Preço Compra
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estoque
+                  Preço Venda
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Fornecedor
@@ -261,11 +239,11 @@ const ProductsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {product.quality}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">
                       R$ {Number(product.base_price).toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {/* Implementar estoque depois */}-
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                    R$ {Number(product.profit_margin).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {/* Implementar fornecedor depois */}-

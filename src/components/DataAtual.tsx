@@ -31,12 +31,12 @@ const DataAtual = () => {
   };
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-md">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-800 mb-4">
+    <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex flex-col items-center">
+        <p className="text-xl font-medium text-gray-400">
           {dateTime.toLocaleTimeString('pt-BR', timeOptions)}
-        </h2>
-        <p className="text-lg text-gray-600">
+        </p>
+        <p className="text-xl text-gray-400">
           {dateTime.toLocaleDateString('pt-BR', dateOptions)}
         </p>
       </div>

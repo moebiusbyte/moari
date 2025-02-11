@@ -107,6 +107,10 @@ const Layout = () => {
             {/* Logo/Nome da aplicação */}
             <h1 className="ml-4 text-xl font-semibold text-gray-800">MoAri</h1>
           </div>
+          {/*Relogio*/}
+          <div className="flex items-center">
+            <DataAtual />
+          </div>
           {/* Área do perfil do usuário */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center">
