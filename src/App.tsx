@@ -3,7 +3,7 @@ import React from "react";
 import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Layout from "./Layout";
-import DataAtual from ",/DataAtual.tsx"
+//import DataAtual from ",/DataAtual.tsx"
 
 export default function App() {
   return (

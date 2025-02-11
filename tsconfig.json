@@ -1,7 +1,7 @@
 {
     "include": [
         "./src/**/*"
-, "database.ts"    ],
+, "database.ts", "server/app.js"    ],
     "compilerOptions": {
         "baseUrl": ".",
         "paths": {
