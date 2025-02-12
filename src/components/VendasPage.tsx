@@ -54,8 +54,7 @@ const VendasPage = () => {
         <h1 className="text-2xl font-semibold text-gray-800">Vendas</h1>
         <button
           onClick={handleNovaVenda}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
+          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
           <Plus size={20} className="mr-2" />
           Nova Venda
         </button>
@@ -69,15 +68,13 @@ const VendasPage = () => {
             placeholder="Buscar vendas..."
             className="w-full pl-10 pr-4 py-2 border rounded-lg"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+            onChange={(e) => setSearchTerm(e.target.value)}/>
           <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
         </div>
 
         <button
           onClick={handleFiltros}
-          className="flex items-center px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50"
-        >
+          className="flex items-center px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">
           <Filter size={20} className="mr-2" />
           Filtros
         </button>

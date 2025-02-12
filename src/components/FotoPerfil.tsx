@@ -1,6 +1,5 @@
-// como importar no final
 import React, { useState } from 'react';
-import { Image } from 'lucide-react';
+import { Image, Camera } from 'lucide-react';
 
 const FotoPerfil = () => {
   const [photo, setPhoto] = useState(null);
@@ -17,27 +16,28 @@ const FotoPerfil = () => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative w-32 h-32">
+    <div className="flex items-center justify-center">
+      <div className="relative w-20 h-20">
+        <div className="absolute inset-0 rounded-full border-4 border-blue-100"></div>
         {photo ? (
           <img
             src={photo}
             alt="Profile"
-            className="w-full h-full rounded-full object-cover border-2 border-gray-200"
+            className="w-full h-full rounded-full object-cover shadow-sm"
           />
         ) : (
-          <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+          <div className="w-full h-full rounded-full bg-gray-50 flex items-center justify-center shadow-sm">
             <Image size={32} className="text-gray-400" />
           </div>
         )}
-        <label className="absolute bottom-0 right-0 p-2 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-600">
+        <label className="absolute bottom-0 right-0 p-1.5 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-600 transition-colors shadow-lg">
           <input
             type="file"
             className="hidden"
             accept="image/*"
             onChange={handlePhotoChange}
           />
-          <Image size={20} className="text-white" />
+          <Camera size={14} className="text-white" />
         </label>
       </div>
     </div>
@@ -45,10 +45,3 @@ const FotoPerfil = () => {
 };
 
 export default FotoPerfil;
-
-PARA IMPORTAR::
-import FotoPerfil from './components/FotoPerfil';
-
-function App() {
-  return <FotoPerfil />;
-}

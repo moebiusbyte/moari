@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { Search, Plus, Filter, Edit, Trash2, Download } from "lucide-react";
 import CadastroProdutos from "./CadastroProdutos";
+import EditProductModal from './EditProductModal';
+import DeleteProductModal from './DeleteProductModal';
 import api from "../../server/api/axiosConfig";
 import type { Product } from "../types/product";
 
 const ProductsPage = () => {
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,10 +21,23 @@ const ProductsPage = () => {
     origem: "",
   });
 
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setEditModalOpen(true);
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    // Encontra o produto completo usando o ID
+    const product = products.find(p => p.id === productId);
+    
+    if (product) {
+      setSelectedProduct(product);
+      setDeleteModalOpen(true);
+    }
+  };
+
   const handleNewProduct = () => {
-    console.log("Estado atual do modal:", isModalOpen);
     setIsModalOpen(true);
-    console.log("Novo estado do modal:", true);
   };
 
   const fetchProducts = async () => {
@@ -50,7 +68,6 @@ const ProductsPage = () => {
     try {
       const formData = new FormData();
 
-      // Mapear campos do formulário para a API
       const apiData = {
         code: produto.codigo,
         name: produto.nome,
@@ -68,7 +85,6 @@ const ProductsPage = () => {
         materials: produto.materiaisComponentes,
       };
 
-      // Adicionar dados do produto
       Object.entries(apiData).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           if (key === "materials") {
@@ -79,14 +95,8 @@ const ProductsPage = () => {
         }
       });
 
-      // Adicionar imagens
-      imagens.forEach((imagem, index) => {
+      imagens.forEach((imagem) => {
         formData.append(`images`, imagem);
-      });
-
-      console.log("Enviando dados:", {
-        url: "/products",
-        formData: Object.fromEntries(formData.entries()),
       });
 
       const response = await api.post("/products", formData, {
@@ -95,12 +105,10 @@ const ProductsPage = () => {
         },
       });
 
-      console.log("Resposta:", response.data);
       await fetchProducts();
       setIsModalOpen(false);
     } catch (error) {
       console.error("Erro ao salvar produto:", error);
-      // Aqui você pode adicionar um toast ou notificação de erro
     }
   };
 
@@ -182,33 +190,15 @@ const ProductsPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Código
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Categoria
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Qualidade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Preço Compra
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Preço Venda
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fornecedor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qualidade</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço Compra</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço Venda</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fornecedor</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -243,10 +233,10 @@ const ProductsPage = () => {
                       R$ {Number(product.base_price).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
-                    R$ {Number(product.profit_margin).toFixed(2)}
+                      R$ {Number(product.profit_margin).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {/* Implementar fornecedor depois */}-
+                      -
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
@@ -260,10 +250,14 @@ const ProductsPage = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-blue-600 hover:text-blue-900 mr-3">
+                      <button
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                        onClick={() => handleEditProduct(product.id)}>
                         <Edit size={18} />
                       </button>
-                      <button className="text-red-600 hover:text-red-900">
+                      <button
+                        className="text-red-600 hover:text-red-900"
+                        onClick={() => handleDeleteProduct(product.id)}>{/*Certifique-se de usar product.id*/}
                         <Trash2 size={18} />
                       </button>
                     </td>
@@ -275,12 +269,46 @@ const ProductsPage = () => {
         </div>
       </div>
 
-      {/* Modal de Cadastro */}
+      {/* Modais */}
       {isModalOpen && (
         <CadastroProdutos
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveProduto}
+        />
+      )}
+
+      {selectedProduct && deleteModalOpen && (
+        <DeleteProductModal
+          isOpen={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setSelectedProduct(null);
+          }}
+          onConfirm={async (productId) => {
+            try {
+              // Use o ID diretamente do selectedProduct para garantir
+              const response = await api.delete(`/products/${selectedProduct.id}`);
+              
+              if (response.status >= 200 && response.status < 300) {
+                setProducts(prevProducts => prevProducts.filter(p => p.id !== selectedProduct.id));
+                setDeleteModalOpen(false);
+                setSelectedProduct(null);
+              } else {
+                throw new Error('Falha ao excluir produto');
+              }
+            } catch (error: any) {
+              console.error('Detalhes do erro:', {
+                id: selectedProduct.id,
+                status: error?.response?.status,
+                data: error?.response?.data,
+                message: error?.message
+              });
+              throw error;
+            }
+          }}
+          productId={selectedProduct.id}
+          productName={selectedProduct.name}
         />
       )}
     </div>

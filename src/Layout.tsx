@@ -28,6 +28,7 @@ import RelatoriosPage from "./components/RelatoriosPage";
 import SignUpPage from "./components/SignUpPage";
 import Saudacao from "./components/Saudacao";
 import DataAtual from "./components/DataAtual";
+import FotoPerfil from "./components/FotoPerfil";
 
 // Componente que controla o acesso às rotas protegidas
 const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({
@@ -95,27 +96,28 @@ const Layout = () => {
     <div className="min-h-screen bg-gray-100">
       {/* Cabeçalho da aplicação */}
       <header className="bg-white shadow-sm">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between px-4 py-1">
           <div className="flex items-center">
             {/* Botão para controlar a visibilidade da sidebar */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100"
-            >
-              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              className="p-1 rounded-lg hover:bg-gray-100">{/* Alteração de cor MOARI = cima MENU*/}
+              {isSidebarOpen ? <X size={32} /> : <Menu size={32} />}{/* Definição tamanho 3 barras e X ao lado Moari*/}
             </button>
             {/* Logo/Nome da aplicação */}
-            <h1 className="ml-4 text-xl font-semibold text-gray-800">MoAri</h1>
+            <h1 className="ml-4 text-4xl font-semibold text-pink-400">MoAri</h1>
           </div>
           {/*Relogio*/}
           <div className="flex items-center">
             <DataAtual />
           </div>
           {/* Área do perfil do usuário */}
-          <div className="flex items-center space-x-4">
+          <div className="display-flex items-center space-x-1">
             <div className="flex items-center">
-              <span className="mr-2 text-sm text-gray-600">{user.name}</span>
-              <div className="w-8 h-8 rounded-full bg-blue-500"></div>
+              <span className="mr-4 text-lg-3 text-gray-700">{user.name}</span>
+              <div className="w-13 h-13 rounded-full bg-blue-900">
+                <FotoPerfil />
+              </div>
             </div>
           </div>
         </div>
@@ -126,26 +128,26 @@ const Layout = () => {
         {/* Sidebar com menu de navegação */}
         <aside
           className={`${
-            isSidebarOpen ? "w-64" : "w-20"
+            isSidebarOpen ? "w-48" : "w-20"
           } transition-width duration-300 ease-in-out bg-white shadow-sm min-h-screen`}
         >
-          <nav className="mt-4">
+          <nav className="mt-0">
             {/* Links de navegação */}
             {menuItems.map((item, index) => (
               <Link
                 key={index}
                 to={item.path}
-                className="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600">
-                <item.icon size={20} />
-                {isSidebarOpen && <span className="ml-3">{item.text}</span>}
+                className="flex items-center px-5 py-3 text-gray-700 hover:bg-blue-100 hover:text-blue-500">{/* Alteração de cor MENU*/}
+                <item.icon size={28} />
+                {isSidebarOpen && <span className="ml-4">{item.text}</span>}
               </Link>
             ))}
             {/* Botão de logout */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center px-4 py-3 mt-4 text-red-600 hover:bg-red-50">
-              <LogOut size={20} />
-              {isSidebarOpen && <span className="ml-3">Sair</span>}
+              className="w-full flex items-center px-5 py-3 mt-12 text-red-500 hover:bg-red-100">
+              <LogOut size={28} />
+              {isSidebarOpen && <span className="ml-3 font-semibold">Sair</span>}
             </button>
           </nav>
         </aside>

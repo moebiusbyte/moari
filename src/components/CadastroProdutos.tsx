@@ -161,7 +161,6 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       });
       return;
     }
-
     onSave(produto, imagens);
   };
 

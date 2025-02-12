@@ -31,12 +31,12 @@ const DataAtual = () => {
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-3">
+    <div className="flex items-center justify-between">
       <div className="flex flex-col items-center">
-        <p className="text-xl font-medium text-gray-400">
+        <p className="text-xl font-medium text-gray-900">
           {dateTime.toLocaleTimeString('pt-BR', timeOptions)}
         </p>
-        <p className="text-xl text-gray-400">
+        <p className="text-xl text-gray-900">
           {dateTime.toLocaleDateString('pt-BR', dateOptions)}
         </p>
       </div>
@@ -44,4 +44,4 @@ const DataAtual = () => {
   );
 };
 
-export default DataAtual;
+export default DataAtual;   
