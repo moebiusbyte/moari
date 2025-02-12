@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { neon } from "@neondatabase/serverless";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import productsRoutes from './routes/productRoutes';
 import { pool, setupDatabase } from '../database';
 
@@ -208,7 +208,13 @@ async function startServer() {
       console.log(`- PORT: ${PORT}`);
       console.log(`- HOST: ${HOST}`);
       console.log(`- NODE_ENV: ${process.env.NODE_ENV}`);
+      app._router.stack.forEach((r: any) => {
+        if (r.route && r.route.path) {
+          console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
+        }
+      });
     });
+
   } catch (error) {
     console.error('Erro ao inicializar servidor:', error);
     process.exit(1);

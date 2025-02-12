@@ -1,5 +1,6 @@
 // src/routes/productRoutes.ts
-import express, { Router } from "express";
+import express, { Router, Request, Response, RequestHandler } from "express";
+import { ParamsDictionary } from 'express-serve-static-core';
 import { Pool } from "pg";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
@@ -8,6 +9,16 @@ import dotenv from "dotenv";
 dotenv.config({ path: "../.env" });
 
 const router: Router = express.Router();
+
+// Interface para os parâmetros da rota
+interface DeleteProductParams extends ParamsDictionary {
+  id: string;
+}
+
+// Defina a interface para os parâmetros
+interface DeleteParams {
+  id: string;
+}
 
 // Criar uma única instância do pool de conexões
 const pool = new Pool({
@@ -184,5 +195,51 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
     client.release();
   }
 });
+
+// Adicione a rota de DELETE
+const deleteProduct: RequestHandler<DeleteParams> = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    
+    await client.query('BEGIN');
+    
+    // Deletar imagens relacionadas
+    await client.query(
+      'DELETE FROM moari.product_images WHERE product_id = $1',
+      [id]
+    );
+
+    // Deletar materiais relacionados
+    await client.query(
+      'DELETE FROM moari.product_materials WHERE product_id = $1',
+      [id]
+    );
+
+    // Deletar o produto
+    const result = await client.query(
+      'DELETE FROM moari.products WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    await client.query('COMMIT');
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ message: 'Produto não encontrado' });
+      return; // Retorna void
+    }
+
+    res.status(200).json({ message: 'Produto deletado com sucesso' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao deletar produto:', error);
+    res.status(500).json({ message: 'Erro ao deletar produto' });
+  } finally {
+    client.release();
+  }
+};
+
+// Usar o handler na rota
+router.delete('/products/:id', deleteProduct);
 
 export default router;
