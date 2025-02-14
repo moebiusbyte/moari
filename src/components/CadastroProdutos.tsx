@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { X, Upload, Trash2, Save, Plus, Tag, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import api from '../../server/api/axiosConfig';
 
 interface ProdutoFormData {
   codigo: string;
@@ -44,6 +45,7 @@ const produtoInicial: ProdutoFormData = {
   descricao: "",
 };
 
+
 const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   isOpen,
   onClose,
@@ -59,8 +61,43 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   } | null>(null);
 
   useEffect(() => {
-    console.log("Modal está aberto:", isOpen);
+    if (isOpen) {
+      console.log("Modal está aberto:", isOpen);
+      generateProductCode();
+      // ... outras inicializações
+    }    
   }, [isOpen]);
+
+  const generateProductCode = async () => {
+    try {
+      // Usar o cliente Axios configurado ao invés de fetch
+      const response = await api.get('/next-product-id');
+      const { nextId } = response.data;
+      
+      // Formatar o código com zeros à esquerda (7 dígitos)
+      const formattedCode = nextId.toString().padStart(7, '0');
+      
+      // Atualizar o estado do produto
+      setProduto(prev => ({
+        ...prev,
+        codigo: formattedCode
+      }));
+    } catch (error) {
+      console.error('Erro ao gerar código do produto:', error);
+      setAlertaPreco({
+        tipo: 'error',
+        mensagem: 'Erro ao gerar código do produto'
+      });
+    }
+  };
+
+  const validateNumberInput = (value: string, maxValue: number) => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return "";
+    if (numValue < 0) return "0";
+    if (numValue > maxValue) return maxValue.toString();
+    return value;
+  };
 
   const calcularPrecoSugerido = useCallback(() => {
     const precoBase = parseFloat(produto.precoBase);
@@ -137,15 +174,37 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     }));
   };
 
-  const handleChange = (
+    const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) => {
     const { name, value } = e.target;
+    
+    let validatedValue = value;
+    
+    // Validate numeric inputs
+    if (name === "precoBase") {
+      validatedValue = validateNumberInput(value, 99999.99); // Max 5 digits before decimal
+      if (parseFloat(value) > 99999.99) {
+        setAlertaPreco({
+          tipo: "warning",
+          mensagem: "O preço base não pode exceder R$ 99.999,99"
+        });
+      }
+    } else if (name === "margemLucro") {
+      validatedValue = validateNumberInput(value, 999.99); // Max 3 digits before decimal
+      if (parseFloat(value) > 999.99) {
+        setAlertaPreco({
+          tipo: "warning",
+          mensagem: "A margem de lucro não pode exceder 999,99%"
+        });
+      }
+    }
+
     setProduto((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: validatedValue,
     }));
 
     if (["precoBase", "margemLucro"].includes(name)) {
@@ -193,8 +252,9 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                   name="codigo"
                   value={produto.codigo}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 p-2"
+                  className="w-full rounded-lg border border-gray-300  bg-gray-200  p-2"
                   required
+                  readOnly
                 />
               </div>
 

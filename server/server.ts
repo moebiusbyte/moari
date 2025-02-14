@@ -57,7 +57,13 @@ const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  console.error(err);
+  console.error("Erro detalhado no middleware:", {
+    message: err.message,
+    status: err.status,
+    stack: err.stack,
+    details: err
+  });
+  
   const status = err.status || 500;
   const message = err.message || "Erro interno do servidor";
   res.status(status).json({
