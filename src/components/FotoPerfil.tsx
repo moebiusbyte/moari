@@ -1,45 +1,57 @@
-import React, { useState } from 'react';
-import { Image, Camera } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Upload } from 'lucide-react';
 
 const FotoPerfil = () => {
-  const [photo, setPhoto] = useState(null);
+  const [fotoPerfil, setFotoPerfil] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
+  useEffect(() => {
+    // Carrega a foto salva ao iniciar o componente
+    const savedImage = localStorage.getItem('fotoPerfil');
+    if (savedImage) {
+      setFotoPerfil(savedImage);
+      setPreviewUrl(savedImage);
+    }
+  }, []);
+
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhoto(reader.result);
+        const base64String = reader.result;
+        setFotoPerfil(base64String);
+        setPreviewUrl(base64String);
+        localStorage.setItem('fotoPerfil', base64String);
       };
       reader.readAsDataURL(file);
     }
   };
 
   return (
-    <div className="flex items-center justify-center">
-      <div className="relative w-20 h-20">
-        <div className="absolute inset-0 rounded-full border-4 border-blue-100"></div>
-        {photo ? (
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gray-100">
+        {previewUrl ? (
           <img
-            src={photo}
-            alt="Profile"
-            className="w-full h-full rounded-full object-cover shadow-sm"
+            src={previewUrl}
+            alt="Foto de perfil"
+            className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full rounded-full bg-gray-50 flex items-center justify-center shadow-sm">
-            <Image size={32} className="text-gray-400" />
+          <div className="w-full h-full flex items-center justify-center bg-gray-200">
+            <Upload className="w-8 h-8 text-gray-400" />
           </div>
         )}
-        <label className="absolute bottom-0 right-0 p-1.5 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-600 transition-colors shadow-lg">
-          <input
-            type="file"
-            className="hidden"
-            accept="image/*"
-            onChange={handlePhotoChange}
-          />
-          <Camera size={14} className="text-white" />
-        </label>
       </div>
+      
+      <label className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-1 py-1 rounded-full transition-colors">
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="hidden"/>
+        {fotoPerfil ? 'Alterar foto' : 'Adicionar foto'}
+      </label>
     </div>
   );
 };

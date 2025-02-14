@@ -18,6 +18,8 @@ import {
   LogOut,
   Menu,
   X,
+  Image,
+  Camera
 } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
 import LoginPage from "./components/LoginPage";
@@ -54,6 +56,21 @@ const Dashboard = () => (
 
 // Componentes das páginas
 const Configuracoes = () => <div>Página de Configurações</div>;
+
+//salvar FotoPerfil
+const handleImageUpload = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result;
+      setFotoPerfil(base64String);
+      setPreviewUrl(base64String);
+      localStorage.setItem('fotoPerfil', base64String);
+    };
+    reader.readAsDataURL(file);
+  }
+};
 
 // Componente principal do Layout
 const Layout = () => {
@@ -101,11 +118,11 @@ const Layout = () => {
             {/* Botão para controlar a visibilidade da sidebar */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-1 rounded-lg hover:bg-gray-100">{/* Alteração de cor MOARI = cima MENU*/}
-              {isSidebarOpen ? <X size={32} /> : <Menu size={32} />}{/* Definição tamanho 3 barras e X ao lado Moari*/}
+              className="p-1 rounded-lg hover:bg-red-300">{/* Alteração de fundo 3 barras*/}
+              {isSidebarOpen ? <X size={36} /> : <Menu size={36} />}{/* Definição tamanho 3 barras e X ao lado Moari*/}
             </button>
             {/* Logo/Nome da aplicação */}
-            <h1 className="ml-4 text-4xl font-semibold text-pink-400">MoAri</h1>
+            <h1 className="ml-4 text-4xl font-semibold text-pink-500">MoAri</h1>
           </div>
           {/*Relogio*/}
           <div className="flex items-center">
@@ -114,8 +131,8 @@ const Layout = () => {
           {/* Área do perfil do usuário */}
           <div className="display-flex items-center space-x-1">
             <div className="flex items-center">
-              <span className="mr-4 text-lg-3 text-gray-700">{user.name}</span>
-              <div className="w-13 h-13 rounded-full bg-blue-900">
+              <span className="mr-4 text-lg-2 text-gray-900">{/*user.name*/}</span>
+              <div className="h-13 w-39 rounded-full bg-red-400">
                 <FotoPerfil />
               </div>
             </div>
