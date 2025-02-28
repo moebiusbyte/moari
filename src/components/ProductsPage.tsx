@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { Search, Plus, Filter, Edit, Trash2, Download, ArrowLeft, ArrowRight, AlertTriangle } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Filter,
+  Edit,
+  Trash2,
+  Download,
+  ArrowLeft,
+  ArrowRight,
+  AlertTriangle } from "lucide-react";
 import CadastroProdutos from "./CadastroProdutos";
-import EditProductModal from './EditProductModal';
-import DeleteProductModal from './DeleteProductModal';
+import EditProduct from './EditProduct';
+import DeleteProduct from './DeleteProduct';
 import api from "../../server/api/axiosConfig";
 import type { Product } from "../types/product";
 
@@ -243,41 +252,40 @@ const ProductsPage = () => {
           <h1 className="text-2xl font-semibold text-gray-800">Produtos</h1>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             <Plus size={20} className="mr-2" />
             Novo Produto
           </button>
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
           <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm text-gray-500">Total de Produtos</h3>
+            <h3 className="text-sm font-semibold text-gray-600">Total de Produtos</h3>
             <p className="text-2xl font-semibold">{estatisticas.totalProdutos}</p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm text-gray-500">Valor em Estoque</h3>
+            <h3 className="text-sm font-semibold text-gray-600">Valor em Estoque</h3>
             <p className="text-2xl font-semibold">
               R$ {estatisticas.valorTotalEstoque.toLocaleString()}
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm text-gray-500">Produtos Ativos</h3>
+            <h3 className="text-sm font-semibold text-gray-600">Produtos Ativos</h3>
             <p className="text-2xl font-semibold">{estatisticas.produtosAtivos}</p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm text-gray-500">Produtos Inativos</h3>
+            <h3 className="text-sm font-semibold text-gray-600">Produtos Inativos</h3>
             <p className="text-2xl font-semibold">{estatisticas.produtosInativos}</p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm text-gray-500">Alertas</h3>
+            <h3 className="text-sm font-semibold text-gray-600">Alertas</h3>
             <p className="text-2xl font-semibold text-yellow-600">
               {estatisticas.produtosAlerta}
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm text-gray-500">Problemas de Qualidade</h3>
+            <h3 className="text-sm font-semibold text-gray-600">Problemas de Qualidade</h3>
             <p className="text-2xl font-semibold text-red-600">
               {estatisticas.produtosProblemasQualidade}
             </p>
@@ -286,16 +294,15 @@ const ProductsPage = () => {
       </div>
 
       {/* Filtros e Busca */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <div className="relative">
           <input
             type="text"
             placeholder="Buscar produtos..."
             className="w-full pl-10 pr-4 py-2 border rounded-lg"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
+            onChange={(e) => setSearchTerm(e.target.value)}/>
+          <Search className="absolute left-3 top-2.5 text-gray-400" size={20}/>
         </div>
 
         <select
@@ -306,8 +313,7 @@ const ProductsPage = () => {
               categoria: e.target.value,
             }))
           }
-          className="border rounded-lg px-4 py-2"
-        >
+          className="border rounded-lg px-6 py-2">
           <option value="">Categoria</option>
           <option value="colares">Colares</option>
           <option value="brincos">Brincos</option>
@@ -323,8 +329,7 @@ const ProductsPage = () => {
               qualidade: e.target.value,
             }))
           }
-          className="border rounded-lg px-4 py-2"
-        >
+          className="border rounded-lg px-6 py-2">
           <option value="">Qualidade</option>
           <option value="alta">Alta</option>
           <option value="media">Média</option>
@@ -339,8 +344,7 @@ const ProductsPage = () => {
               tempoEstoque: e.target.value,
             }))
           }
-          className="border rounded-lg px-4 py-2"
-        >
+          className="border rounded-lg px-6 py-2">
           <option value="">Tempo em Estoque</option>
           <option value="1-3">1-3 meses</option>
           <option value="3-6">3-6 meses</option>
@@ -350,8 +354,7 @@ const ProductsPage = () => {
         <select
           value={filtroAvancado.fornecedor}
           onChange={(e) => setFiltroAvancado(prev => ({...prev, fornecedor: e.target.value}))}
-          className="border rounded-lg px-4 py-2"
-        >
+          className="border rounded-lg px-6 py-2">
           <option value="">Fornecedor</option>
           {/* Opções dinâmicas de fornecedores */}
         </select>
@@ -359,8 +362,7 @@ const ProductsPage = () => {
         <select
           value={filtroAvancado.status}
           onChange={(e) => setFiltroAvancado(prev => ({...prev, status: e.target.value}))}
-          className="border rounded-lg px-4 py-2"
-        >
+          className="border rounded-lg px-6 py-2">
           <option value="">Status</option>
           <option value="active">Ativo</option>
           <option value="consigned">Consignado</option>
@@ -374,35 +376,18 @@ const ProductsPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Código
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Categoria
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Qualidade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Preço Base
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Margem
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Preço Final
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qualidade</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço Base</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Margem</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço Final</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
+
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
@@ -422,24 +407,12 @@ const ProductsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {product.code}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {product.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {product.category}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {product.quality}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">
-                      R$ {Number(product.base_price).toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
-                      R$ {Number(product.profit_margin).toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      -
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.quality}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">R$ {Number(product.base_price).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">R$ {Number(product.profit_margin).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"></td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -471,22 +444,19 @@ const ProductsPage = () => {
                       <button
                         className="text-blue-600 hover:text-blue-900 mr-3"
                         onClick={() => handleEditProduct(product)}
-                        title="Editar Produto"
-                      >
+                        title="Editar Produto">
                         <Edit size={18} />
                       </button>
                       <button
                         className="text-red-600 hover:text-red-900 mr-3"
                         onClick={() => handleDeleteProduct(product.id)}
-                        title="Excluir Produto"
-                      >
+                        title="Excluir Produto">
                         <Trash2 size={18} />
                       </button>
                       <button
                         onClick={() => handleQualityReport(product.id)}
                         className="text-yellow-600 hover:text-yellow-900"
-                        title="Relatório de Qualidade"
-                      >
+                        title="Relatório de Qualidade">
                         <AlertTriangle size={18} />
                       </button>
                     </td>
@@ -513,9 +483,8 @@ const ProductsPage = () => {
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-3 py-1 border rounded-md disabled:opacity-50"
-          >
-            <ArrowLeft size={16} />
+            className="px-3 py-1 border rounded-md disabled:opacity-50">
+            <ArrowLeft size={16}/>
           </button>
           <span className="text-sm text-gray-700">
             Página {page} de {totalPages}
@@ -523,23 +492,20 @@ const ProductsPage = () => {
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="px-3 py-1 border rounded-md disabled:opacity-50"
-          >
-            <ArrowRight size={16} />
+            className="px-3 py-1 border rounded-md disabled:opacity-50">
+            <ArrowRight size={16}/>
           </button>
         </div>
       </div>
 
-      {/* Modais */}
+      {/* Modal */}
       {isModalOpen && (
         <CadastroProdutos
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onSave={handleSaveProduto}
-        />
+          onSave={handleSaveProduto}/>
       )}
 
-      {/* Modais */}
       {selectedProduct && editModalOpen && (
         <EditProductModal
           isOpen={editModalOpen}
@@ -548,8 +514,7 @@ const ProductsPage = () => {
             setSelectedProduct(null);
           }}
           onSave={(formData, newImages) => handleUpdateProduct(formData, newImages)}
-          product={selectedProduct}
-        />
+          product={selectedProduct}/>
       )}
 
       {selectedProduct && deleteModalOpen && (
@@ -561,8 +526,7 @@ const ProductsPage = () => {
           }}
           onConfirm={handleConfirmDelete}
           productId={selectedProduct.id}
-          productName={selectedProduct.name}
-        />
+          productName={selectedProduct.name}/>
       )}
     </div>
   );

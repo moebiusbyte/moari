@@ -68,14 +68,41 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     }    
   }, [isOpen]);
 
+  
   const generateProductCode = async () => {
     try {
-      // Usar o cliente Axios configurado ao invés de fetch
+      // Reset de mensagens de alerta
+      setAlertaPreco(null);
+      
+      // Usar o cliente Axios configurado
       const response = await api.get('/next-product-id');
+      console.log('Resposta da API de código de produto:', response.data);
+      
+      // Verificar se a resposta contém o campo esperado
+      if (!response.data || response.data.nextId === undefined) {
+        throw new Error('Resposta da API inválida - campo nextId ausente');
+      }
+      
       const { nextId } = response.data;
       
-      // Formatar o código com zeros à esquerda (7 dígitos)
-      const formattedCode = nextId.toString().padStart(7, '0');
+      // Garantir que o código seja sempre uma string com 7 dígitos
+      let formattedCode;
+      
+      if (typeof nextId === 'string') {
+        // Se já for uma string, certificar-se de que tem o formato correto
+        formattedCode = nextId.match(/^\d+$/) 
+          ? nextId.padStart(7, '0')
+          : '0000001'; // Fallback se não for numérico
+      } else if (typeof nextId === 'number') {
+        // Se for um número, converter para string com padding
+        formattedCode = nextId.toString().padStart(7, '0');
+      } else {
+        // Tipo inesperado, usar fallback
+        console.warn('Tipo de nextId inesperado:', typeof nextId);
+        formattedCode = '0000001';
+      }
+      
+      console.log('Código formatado para uso:', formattedCode);
       
       // Atualizar o estado do produto
       setProduto(prev => ({
@@ -84,13 +111,23 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       }));
     } catch (error) {
       console.error('Erro ao gerar código do produto:', error);
+      
+      // Usar um código padrão em caso de erro
+      const fallbackCode = '0000001';
+      console.log('Usando código fallback:', fallbackCode);
+      
+      setProduto(prev => ({
+        ...prev,
+        codigo: fallbackCode
+      }));
+      
+      // Mostrar alerta, mas não bloquear o uso do formulário
       setAlertaPreco({
-        tipo: 'error',
-        mensagem: 'Erro ao gerar código do produto'
+        tipo: 'warning',
+        mensagem: 'Erro ao gerar código do produto. Usando código padrão.'
       });
     }
   };
-
   const validateNumberInput = (value: string, maxValue: number) => {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return "";

@@ -33,6 +33,7 @@ app.use(
       "https://v3rks3-5173.csb.app",
       "http://172.17.0.2:5173",
       "http://localhost:5173",
+      "http://localhost:5174",
       "http://192.168.241.2:5173",
       "http://192.168.16.1:5173",
       /\.csb\.app$/
@@ -43,7 +44,9 @@ app.use(
   })
 );
 
+// Middlewares
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Interface para tratamento de erros
 interface ApiError extends Error {

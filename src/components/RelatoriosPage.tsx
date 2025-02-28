@@ -62,8 +62,8 @@ const RelatoriosPage = () => {
               <DollarSign className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-500">Faturamento Total</p>
-              <p className="text-xl font-semibold">R$ 125.890,00</p>
+              <p className="text-sm text-gray-600">Faturamento Total</p>
+              <p className="text-2xl font-semibold text-green-700">R$ 125.890,00</p>
             </div>
           </div>
         </div>
@@ -74,8 +74,8 @@ const RelatoriosPage = () => {
               <TrendingUp className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-500">Crescimento</p>
-              <p className="text-xl font-semibold">+15.3%</p>
+              <p className="text-sm text-gray-600">Crescimento</p>
+              <p className="text-2xl font-semibold text-blue-700">+15.3%</p>
             </div>
           </div>
         </div>
@@ -83,11 +83,11 @@ const RelatoriosPage = () => {
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-100 rounded">
-              <Package className="h-6 w-6 text-yellow-600" />
+              <Package className="h-6 w-6" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-500">Total de Produtos</p>
-              <p className="text-xl font-semibold">387</p>
+              <p className="text-sm text-gray-600">Total de Produtos</p>
+              <p className="text-2xl font-semibold text-gray-600">387</p>
             </div>
           </div>
         </div>
@@ -97,10 +97,13 @@ const RelatoriosPage = () => {
             <div className="p-2 bg-purple-100 rounded">
               <Calendar className="h-6 w-6 text-purple-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-500">Meta Mensal</p>
-              <p className="text-xl font-semibold">85%</p>
+            <div>
+                <p className="text-sm text-gray-600">Meta Mensal</p>
+                <p className="text-xl font-semibold text-yellow-700">
+                  <span className="text-2xl">85</span>%
+                </p>
             </div>
+
           </div>
         </div>
       </div>
@@ -121,6 +124,6 @@ const RelatoriosPage = () => {
       </div>
     </div>
   );
-};
+}; 
 
 export default RelatoriosPage;

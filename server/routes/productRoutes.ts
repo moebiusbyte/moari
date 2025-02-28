@@ -14,6 +14,11 @@ interface DeleteProductParams extends ParamsDictionary {
   id: string;
 }
 
+interface ApiError extends Error {
+  code?: string;
+  status?: number;
+  detail?: string;
+}
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -67,32 +72,52 @@ const deleteProduct = async (req: Request, res: Response) => {
   }
 };
 
-const handleDatabaseError = (error: any, res: express.Response) => {
+const handleDatabaseError = (error: unknown, res: Response): void => {
   console.error("Database error:", error);
-  res.status(500).json({
-    error: "Erro interno do servidor",
-    details: process.env.NODE_ENV === "development" ? error.message : undefined,
+  
+  // Cast para o tipo ApiError para acessar propriedades de erro comuns
+  const apiError = error as ApiError;
+  
+  // Determinar código de status HTTP apropriado
+  let statusCode = 500;
+  let errorMessage = 'Erro interno do servidor';
+  
+  // Verificar se é um erro de violação de chave única
+  if (apiError.code === '23505') {
+    statusCode = 409; // Conflict
+    errorMessage = 'Registro duplicado';
+  }
+  
+  // Verificar se é um erro de violação de restrição
+  else if (apiError.code === '23503') {
+    statusCode = 400; // Bad Request
+    errorMessage = 'Violação de restrição de integridade';
+  }
+  
+  // Enviar resposta de erro ao cliente
+  res.status(statusCode).json({
+    error: errorMessage,
+    details: process.env.NODE_ENV === "development" ? apiError.message : undefined,
   });
 };
 
+// Substitua o endpoint /next-product-id atual por esta implementação
 router.get("/next-product-id", async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
+    // Iniciar transação
     await client.query('BEGIN');
     
-    // Query modificada para considerar corretamente o maior código existente
+    // Consulta simplificada para obter o maior código numérico
     const result = await client.query(`
       SELECT 
         COALESCE(
           MAX(
-            CAST(
-              CASE 
-                WHEN code ~ '^[0-9]+$' 
-                THEN LPAD(code, 7, '0')
-                ELSE '0000000'
-              END AS INTEGER
-            )
-          ),
+            CASE 
+              WHEN code ~ '^[0-9]+$' THEN CAST(code AS INTEGER)
+              ELSE 0
+            END
+          ), 
           0
         ) + 1 AS next_id 
       FROM moari.products
@@ -100,9 +125,14 @@ router.get("/next-product-id", async (req: Request, res: Response) => {
     
     const nextId = result.rows[0].next_id;
     
+    // Formatar o código com zeros à esquerda (7 dígitos)
+    const formattedNextId = nextId.toString().padStart(7, '0');
+    
     await client.query('COMMIT');
     
-    res.json({ nextId });
+    console.log(`Próximo código gerado: ${formattedNextId}`);
+    
+    res.json({ nextId: formattedNextId });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erro ao gerar próximo ID:', error);
@@ -112,43 +142,99 @@ router.get("/next-product-id", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/products", async (req, res) => {
+router.get("/test-cors", async (req: Request, res: Response) => {
+  try {
+    res.json({
+      message: "CORS configurado corretamente!",
+      timestamp: new Date().toISOString(),
+      headers: req.headers,
+      origin: req.headers.origin
+    });
+  } catch (error) {
+    console.error("Erro na rota de teste:", error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+});
+
+// Adicione este endpoint ao arquivo productRoutes.ts
+router.get("/diagnose-products-table", async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
-    const { page = 1, limit = 10, search, category, quality } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    // Verificar se a tabela existe
+    const tableExistsQuery = `
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'moari' 
+        AND table_name = 'products'
+      );
+    `;
+    const tableExists = await client.query(tableExistsQuery);
+    
+    // Obter estrutura da tabela
+    const tableStructureQuery = `
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns
+      WHERE table_schema = 'moari' AND table_name = 'products';
+    `;
+    const tableStructure = await client.query(tableStructureQuery);
+    
+    // Contar registros
+    const countQuery = `SELECT COUNT(*) FROM moari.products;`;
+    const recordCount = await client.query(countQuery);
+    
+    // Obter amostra de registros
+    const sampleQuery = `SELECT * FROM moari.products LIMIT 5;`;
+    const sampleRecords = await client.query(sampleQuery);
+    
+    // Verificar códigos existentes
+    const codesQuery = `
+      SELECT code FROM moari.products 
+      WHERE code ~ '^[0-9]+$'
+      ORDER BY CAST(code AS INTEGER);
+    `;
+    const existingCodes = await client.query(codesQuery);
+    
+    res.json({
+      tableExists: tableExists.rows[0].exists,
+      tableStructure: tableStructure.rows,
+      recordCount: recordCount.rows[0].count,
+      sampleRecords: sampleRecords.rows,
+      existingCodes: existingCodes.rows.map(row => row.code)
+    });
+  } catch (error: any) { // Explicitamente tipado como 'any' para acessar .message
+    console.error('Erro ao diagnosticar tabela de produtos:', error);
+    res.status(500).json({ 
+      error: 'Erro ao diagnosticar tabela de produtos',
+      details: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
+  } finally {
+    client.release();
+  }
+});
 
-    const getNextProductId = async (req: Request, res: Response) => {
-      const client = await pool.connect();
-      try {
-        // Iniciar transação
-        await client.query('BEGIN');
-        
-        // Obter o maior ID atual
-        const result = await client.query(
-          'SELECT COALESCE(MAX(CAST(code AS INTEGER)), 0) + 1 AS next_id FROM products WHERE code ~ E\'^\\\\d+$\''
-        );
-        
-        const nextId = result.rows[0].next_id;
-        
-        await client.query('COMMIT');
-        
-        res.json({ nextId });
-      } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('Erro ao gerar próximo ID:', error);
-        res.status(500).json({ error: 'Erro ao gerar ID do produto' });
-      } finally {
-        client.release();
-      }
-    };
+router.get("/products", async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  try {
+    console.log("Consulta de produtos recebida com parâmetros:", req.query);
+    
+    const { 
+      page = 1, 
+      limit = 10, 
+      search, 
+      category, 
+      quality,
+      orderBy = "created_at",
+      orderDirection = "desc"
+    } = req.query;
+    
+    const offset = (Number(page) - 1) * Number(limit);
 
     // Consulta para obter estatísticas
     const statsQuery = `
       SELECT 
         COUNT(*) as total_produtos,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as produtos_ativos,
-        COUNT(CASE WHEN status != 'active' THEN 1 END) as produtos_inativos,
+        COUNT(CASE WHEN status != 'active' OR status IS NULL THEN 1 END) as produtos_inativos,
         COUNT(CASE WHEN has_quality_issues = true THEN 1 END) as produtos_problemas_qualidade,
         COUNT(CASE WHEN status = 'consigned' THEN 1 END) as produtos_consignados,
         COALESCE(SUM(base_price), 0) as valor_total_estoque,
@@ -156,6 +242,7 @@ router.get("/products", async (req, res) => {
       FROM moari.products
     `;
 
+    console.log("Executando consulta de estatísticas");
     const statsResult = await client.query(statsQuery);
     const statistics = {
       totalProdutos: parseInt(statsResult.rows[0].total_produtos) || 0,
@@ -168,8 +255,8 @@ router.get("/products", async (req, res) => {
     };
 
     // Query para produtos
-    let queryParams = [];
-    let conditions = [];
+    let queryParams: any[] = [];
+    let conditions: string[] = [];
     let queryText = `
       SELECT 
         p.*,
@@ -199,13 +286,29 @@ router.get("/products", async (req, res) => {
       queryText += ` WHERE ${conditions.join(" AND ")}`;
     }
 
-    queryText += ` GROUP BY p.id ORDER BY p.created_at DESC`;
+    queryText += ` GROUP BY p.id`;
+    
+    // Adiciona ordenação
+    let orderColumn = "p.created_at";
+    if (orderBy === "name") orderColumn = "p.name";
+    if (orderBy === "code") orderColumn = "p.code";
+    if (orderBy === "category") orderColumn = "p.category";
+    if (orderBy === "price") orderColumn = "p.base_price";
+    
+    let direction = "DESC";
+    if (orderDirection === "asc") direction = "ASC";
+    
+    queryText += ` ORDER BY ${orderColumn} ${direction}`;
 
     // Adiciona limit e offset
-    queryParams.push(limit, offset);
+    queryParams.push(Number(limit), Number(offset));
     queryText += ` LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
 
+    console.log("Executando consulta de produtos com parâmetros:", queryParams);
+    console.log("Query SQL:", queryText);
+    
     const productsResult = await client.query(queryText, queryParams);
+    console.log(`Consulta retornou ${productsResult.rows.length} produtos`);
 
     res.json({
       products: productsResult.rows,
@@ -213,8 +316,8 @@ router.get("/products", async (req, res) => {
       total: parseInt(statsResult.rows[0].total_produtos)
     });
 
-  } catch (error) {
-    console.error("Erro na consulta:", error);
+  } catch (error: any) {
+    console.error("Erro na consulta de produtos:", error);
     handleDatabaseError(error, res);
   } finally {
     client.release();

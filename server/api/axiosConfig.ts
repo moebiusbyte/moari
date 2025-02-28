@@ -13,6 +13,7 @@ const getBaseUrl = () => {
 
 const api = axios.create({
   baseURL: getBaseUrl(),
+  timeout: 10000, // 10 segundos
   headers: {
     "Content-Type": "application/json",
   },
@@ -38,6 +39,7 @@ api.interceptors.response.use(
       method: error.config?.method,
       status: error.response?.status,
       data: error.response?.data,
+      error: error.response || error
     });
     return Promise.reject(error);
   }
