@@ -23,9 +23,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
 import LoginPage from "./components/LoginPage";
-import VendasPage from "./components/VendasPage";
+import VendasPage from "./components/Vendas/VendasPage";
 import ProductsPage from "./components/Produtos/ProductsPage";
-import FornecedoresPage from "./components/FornecedoresPage";
+import FornecedoresPage from "./components/Fornecedores/FornecedoresPage";
 import RelatoriosPage from "./components/RelatoriosPage";
 import SignUpPage from "./components/SignUpPage";
 import Saudacao from "./components/Saudacao";

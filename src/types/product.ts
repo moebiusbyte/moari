@@ -4,7 +4,6 @@ export interface Product {
   name: string;
   category: string;
   format: string;
-  quality: string;
   material_type: string;
   usage_mode: string;
   size: string;

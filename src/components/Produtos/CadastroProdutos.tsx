@@ -14,7 +14,7 @@ interface ProdutoFormData {
   tamanho: string;
   materiaisComponentes: string[];
   origem: string;
-  garantia: string;
+  garantia: string; 
   fornecedor: string;
   precoBase: string;
   margemLucro: string;
@@ -38,7 +38,7 @@ const produtoInicial: ProdutoFormData = {
   tamanho: "",
   materiaisComponentes: [] as string[],
   origem: "",
-  garantia: "",
+  garantia: "false", // Adicionado o campo garantia
   fornecedor: "",
   precoBase: "",
   margemLucro: "",
@@ -80,7 +80,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       const response = await api.get('/next-product-id');
       console.log('Resposta da API de código de produto:', response.data);
   
-// Verificar se a resposta contém o campo esperado
+      // Verificar se a resposta contém o campo esperado
       if (!response.data || response.data.nextId === undefined) {
         throw new Error('Resposta da API inválida - campo nextId ausente');
       }
@@ -211,39 +211,35 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     }));
   };
 
-    const handleChange = (
+  const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) => {
-    const { name, value } = e.target;
-    
+    const { name, value, type } = e.target;
+  
     let validatedValue = value;
-    
-    // Validate numeric inputs
-    if (name === "precoBase") {
-      validatedValue = validateNumberInput(value, 99999.99); // Max 5 digits before decimal
-      if (parseFloat(value) > 99999.99) {
-        setAlertaPreco({
-          tipo: "warning",
-          mensagem: "O preço base não pode exceder R$ 99.999,99"
-        });
-      }
-    } else if (name === "margemLucro") {
-      validatedValue = validateNumberInput(value, 999.99); // Max 3 digits before decimal
-      if (parseFloat(value) > 999.99) {
-        setAlertaPreco({
-          tipo: "warning",
-          mensagem: "A margem de lucro não pode exceder 999,99%"
-        });
+  
+    // Lidar com checkboxes
+    if (type === "checkbox" && e.target instanceof HTMLInputElement) {
+      validatedValue = e.target.checked ? "true" : "false";
+    }
+  
+    // Validação para campos numéricos
+    if (["precoBase", "margemLucro"].includes(name)) {
+      const numValue = parseFloat(value);
+      if (isNaN(numValue) || numValue < 0) {
+        validatedValue = "0"; // Define como 0 se o valor for inválido
+      } else {
+        validatedValue = numValue.toString();
       }
     }
-
+  
     setProduto((prev) => ({
       ...prev,
       [name]: validatedValue,
     }));
-
+  
     if (["precoBase", "margemLucro"].includes(name)) {
       calcularPrecoSugerido();
     }
@@ -408,6 +404,27 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                   onChange={handleChange}
                   className="w-full rounded-lg border border-gray-300 p-2"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Garantia
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="garantia"
+                    checked={produto.garantia === "true"} // Verifica se a garantia está marcada
+                    onChange={(e) =>
+                      setProduto((prev) => ({
+                        ...prev,
+                        garantia: e.target.checked ? "true" : "false", // Atualiza o estado
+                      }))
+                    }
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span>Produto com garantia</span>
+                </div>
               </div>
             </div>
           </div>

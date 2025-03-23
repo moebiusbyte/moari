@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
 import productsRoutes from './routes/productRoutes';
+import fornecedoresRoutes from './routes/fornecedoresRoutes';
 import { pool, setupDatabase } from '../database';
 
 dotenv.config();
@@ -88,6 +89,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Rotas
 app.use('/api', productsRoutes);
+app.use('/api', fornecedoresRoutes);
 
 // Rota de registro
 app.post("/auth/register", async (req: Request, res: Response, next: NextFunction) => {
@@ -200,6 +202,12 @@ app.get("/ping", async (req: Request, res: Response, next: NextFunction) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+app._router.stack.forEach((r: any) => {
+  if (r.route && r.route.path) {
+    console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
   }
 });
 

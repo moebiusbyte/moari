@@ -2,13 +2,10 @@ import React, { useEffect, useState } from "react";
 import {
   Search,
   Plus,
-  Filter,
   Edit,
   Trash2,
-  Download,
   ArrowLeft,
-  ArrowRight,
-  AlertTriangle } from "lucide-react";
+  ArrowRight } from "lucide-react";
 import CadastroProdutos from "./CadastroProdutos";
 import EditProductModal from './EditProductModal';
 import DeleteProductModal from './DeleteProductModal';
@@ -32,7 +29,6 @@ const ProductsPage = () => {
   // Estado para filtros avançados
   const [filtroAvancado, setFiltroAvancado] = useState({
     categoria: "",
-    qualidade: "",
     origem: "",
     status: "",
     fornecedor: "",
@@ -53,7 +49,6 @@ const ProductsPage = () => {
     produtosAtivos: 0,
     produtosInativos: 0,
     produtosAlerta: 0,
-    produtosProblemasQualidade: 0,
     produtosConsignados: 0
   });
 
@@ -68,7 +63,6 @@ const ProductsPage = () => {
         orderBy: ordenacao.campo,
         orderDirection: ordenacao.ordem,
         category: filtroAvancado.categoria,
-        quality: filtroAvancado.qualidade,
         tempoestoque: filtroAvancado.tempoEstoque,
         fstatus: filtroAvancado.status,
         ffornecedor: filtroAvancado.fornecedor,
@@ -102,15 +96,6 @@ const ProductsPage = () => {
   useEffect(() => {
     fetchProducts();
   }, [page, searchTerm, filtroAvancado, ordenacao]);
-
-  const handleQualityReport = async (productId: string) => {
-    try {
-      const response = await api.get(`/products/${productId}/quality-report`);
-      // Implementar lógica de exibição do relatório
-    } catch (error) {
-      console.error('Erro ao buscar relatório de qualidade:', error);
-    }
-  };
 
   const getMonthsInStock = (createdAt: string) => {
     const createdDate = new Date(createdAt);
@@ -162,7 +147,7 @@ const ProductsPage = () => {
       // Atualizar lista de produtos
       setProducts(prevProducts =>
         prevProducts.map(p =>
-          p.id === selectedProduct.id ? response.data : p
+          p.id.toString() === selectedProduct.id.toString() ? response.data : p
         )
       );
   
@@ -176,7 +161,7 @@ const ProductsPage = () => {
 
   // Handler para exclusão de produto
   const handleDeleteProduct = (productId: string) => {
-    const product = products.find(p => p.id === productId);
+    const product = products.find(p => p.id.toString() === productId.toString());
     if (product) {
       setSelectedProduct(product);
       setDeleteModalOpen(true);
@@ -187,7 +172,7 @@ const ProductsPage = () => {
   const handleConfirmDelete = async (productId: string) => {
     try {
       await api.delete(`/products/${productId}`);
-      setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+      setProducts(prevProducts => prevProducts.filter(p => p.id.toString() !== productId.toString()));
       setDeleteModalOpen(false);
       setSelectedProduct(null);
     } catch (error) {
@@ -205,7 +190,6 @@ const ProductsPage = () => {
         name: produto.nome,
         category: produto.categoria,
         format: produto.formato,
-        quality: produto.qualidade,
         material_type: produto.tipoMaterial,
         usage_mode: produto.modoUso,
         size: produto.tamanho,
@@ -259,7 +243,7 @@ const ProductsPage = () => {
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
           <div className="bg-white p-4 rounded-lg shadow">
             <h3 className="text-sm font-semibold text-gray-600">Total de Produtos</h3>
             <p className="text-2xl font-semibold">{estatisticas.totalProdutos}</p>
@@ -284,17 +268,11 @@ const ProductsPage = () => {
               {estatisticas.produtosAlerta}
             </p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-semibold text-gray-600">Problemas de Qualidade</h3>
-            <p className="text-2xl font-semibold text-red-600">
-              {estatisticas.produtosProblemasQualidade}
-            </p>
-          </div>
         </div>
       </div>
 
       {/* Filtros e Busca */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-5">
         <div className="relative">
           <input
             type="text"
@@ -319,21 +297,6 @@ const ProductsPage = () => {
           <option value="brincos">Brincos</option>
           <option value="aneis">Anéis</option>
           <option value="pulseiras">Pulseiras</option>
-        </select>
-
-        <select
-          value={filtroAvancado.qualidade}
-          onChange={(e) =>
-            setFiltroAvancado((prev) => ({
-              ...prev,
-              qualidade: e.target.value,
-            }))
-          }
-          className="border rounded-lg px-6 py-2">
-          <option value="">Qualidade</option>
-          <option value="alta">Alta</option>
-          <option value="media">Média</option>
-          <option value="baixa">Baixa</option>
         </select>
 
         <select
@@ -366,7 +329,6 @@ const ProductsPage = () => {
           <option value="">Status</option>
           <option value="active">Ativo</option>
           <option value="consigned">Consignado</option>
-          <option value="quality_issue">Problema de Qualidade</option>
         </select>
       </div>
 
@@ -379,7 +341,6 @@ const ProductsPage = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qualidade</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço Base</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Margem</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço Final</th>
@@ -428,11 +389,6 @@ const ProductsPage = () => {
                             ? "Consignado"
                             : "Inativo"}
                         </span>
-                        {product.has_quality_issues && (
-                          <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
-                            Problema Qualidade
-                          </span>
-                        )}
                         {getMonthsInStock(product.created_at) > 6 && (
                           <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
                             +6 Meses em Estoque
@@ -452,12 +408,6 @@ const ProductsPage = () => {
                         onClick={() => handleDeleteProduct(product.id)}
                         title="Excluir Produto">
                         <Trash2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleQualityReport(product.id)}
-                        className="text-yellow-600 hover:text-yellow-900"
-                        title="Relatório de Qualidade">
-                        <AlertTriangle size={18} />
                       </button>
                     </td>
                   </tr>
