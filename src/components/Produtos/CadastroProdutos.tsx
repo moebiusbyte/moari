@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { X, Upload, Trash2, Save, Plus, Tag, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import api from '../../server/api/axiosConfig';
+import api from '../../../server/api/axiosConfig';
 
 interface ProdutoFormData {
   codigo: string;
@@ -55,6 +55,8 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   const [imagens, setImagens] = useState<File[]>([]);
   const [previewImagens, setPreviewImagens] = useState<string[]>([]);
   const [novoMaterial, setNovoMaterial] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [alertaPreco, setAlertaPreco] = useState<{
     tipo: string;
     mensagem: string;
@@ -71,20 +73,20 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   
   const generateProductCode = async () => {
     try {
-      // Reset de mensagens de alerta
+      setLoading(true); // Define o estado como "carregando"
       setAlertaPreco(null);
-      
-      // Usar o cliente Axios configurado
+  
+      // Chamada à API para obter o próximo código de produto
       const response = await api.get('/next-product-id');
       console.log('Resposta da API de código de produto:', response.data);
-      
-      // Verificar se a resposta contém o campo esperado
+  
+// Verificar se a resposta contém o campo esperado
       if (!response.data || response.data.nextId === undefined) {
         throw new Error('Resposta da API inválida - campo nextId ausente');
       }
-      
+  
       const { nextId } = response.data;
-      
+  
       // Garantir que o código seja sempre uma string com 7 dígitos
       let formattedCode;
       
@@ -96,7 +98,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       } else if (typeof nextId === 'number') {
         // Se for um número, converter para string com padding
         formattedCode = nextId.toString().padStart(7, '0');
-      } else {
+  } else {
         // Tipo inesperado, usar fallback
         console.warn('Tipo de nextId inesperado:', typeof nextId);
         formattedCode = '0000001';
@@ -107,25 +109,23 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       // Atualizar o estado do produto
       setProduto(prev => ({
         ...prev,
-        codigo: formattedCode
+        codigo: formattedCode,
       }));
     } catch (error) {
       console.error('Erro ao gerar código do produto:', error);
-      
-      // Usar um código padrão em caso de erro
-      const fallbackCode = '0000001';
-      console.log('Usando código fallback:', fallbackCode);
-      
-      setProduto(prev => ({
+  
+      // Define um código padrão em caso de erro
+      setProduto((prev) => ({
         ...prev,
-        codigo: fallbackCode
+        codigo: '0000001',
       }));
-      
-      // Mostrar alerta, mas não bloquear o uso do formulário
+  
       setAlertaPreco({
         tipo: 'warning',
-        mensagem: 'Erro ao gerar código do produto. Usando código padrão.'
+        mensagem: 'Erro ao gerar código do produto. Usando código padrão.',
       });
+    } finally {
+      setLoading(false); // Finaliza o estado de "carregando"
     }
   };
   const validateNumberInput = (value: string, maxValue: number) => {
@@ -249,7 +249,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!produto.nome || !produto.codigo || !produto.categoria) {
       setAlertaPreco({
         tipo: "error",
@@ -257,7 +257,43 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       });
       return;
     }
-    onSave(produto, imagens);
+  
+    try {
+      setLoading(true);
+      setError(null);
+  
+      // Log para debug
+      console.log("Tentando salvar produto com ID:", produto.codigo);
+  
+      // Tentar salvar o produto
+      await onSave(produto, imagens);
+  
+      // Se chegou aqui, deu tudo certo
+      onClose();
+    } catch (err: any) {
+      // Log detalhado do erro
+      console.error("Erro ao salvar produto:", {
+        codigo: produto.codigo,
+        error: err,
+      });
+  
+      // Tratamento mais específico do erro
+      let errorMessage = "Erro ao salvar produto. Por favor, tente novamente.";
+  
+      if (err?.message) {
+        errorMessage = err.message;
+      }
+  
+      setError(errorMessage);
+  
+      // Exibir alerta de erro
+      setAlertaPreco({
+        tipo: "error",
+        mensagem: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   //if (!isOpen) return null;
@@ -287,9 +323,9 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                 <input
                   type="text"
                   name="codigo"
-                  value={produto.codigo}
+                  value={loading ? "Carregando..." : produto.codigo} // Mostra "Carregando..." enquanto `loading` for true
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300  bg-gray-200  p-2"
+                  className="w-full rounded-lg border border-gray-300 bg-gray-200 p-2"
                   required
                   readOnly
                 />
@@ -523,10 +559,18 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+            className={`px-4 py-2 rounded-lg flex items-center ${
+              loading
+                ? "bg-blue-400 text-white cursor-not-allowed" // Azul claro quando carregando
+                : "bg-blue-600 text-white hover:bg-blue-700" // Azul padrão
+            }`}
+            disabled={loading}
           >
-            <Save size={20} className="mr-2" />
-            Salvar Produto
+            {loading ? (
+              <span className="inline-block">Salvando...</span>
+            ) : (
+              "Salvar"
+            )}
           </button>
         </div>
       </div>

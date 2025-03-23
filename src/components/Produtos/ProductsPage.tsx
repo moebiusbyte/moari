@@ -10,10 +10,10 @@ import {
   ArrowRight,
   AlertTriangle } from "lucide-react";
 import CadastroProdutos from "./CadastroProdutos";
-import EditProduct from './EditProduct';
-import DeleteProduct from './DeleteProduct';
-import api from "../../server/api/axiosConfig";
-import type { Product } from "../types/product";
+import EditProductModal from './EditProductModal';
+import DeleteProductModal from './DeleteProductModal';
+import api from "../../../server/api/axiosConfig";
+import type { Product } from "../../types/product";
 
 const ProductsPage = () => {
   // Estados para modais

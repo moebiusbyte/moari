@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { Product } from '../types/product';
+import type { Product } from '../../types/product';
 
 interface EditProductModalProps {
   isOpen: boolean;
