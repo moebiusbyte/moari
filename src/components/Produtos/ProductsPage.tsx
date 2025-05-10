@@ -105,14 +105,23 @@ const ProductsPage = () => {
     }
   };
 
-  // Atualizar produtos e fornecedores quando mudar página, busca ou filtros
+  // Para buscar produtos quando os filtros, páginas etc. mudam
   useEffect(() => {
+    console.log("Valores de filtro sendo enviados:", {
+      fornecedor: filtroAvancado.fornecedor,
+      categoria: filtroAvancado.categoria,
+      status: filtroAvancado.status,
+      tempoEstoque: filtroAvancado.tempoEstoque
+      // Inclua outros filtros se quiser ver todos
+    });
     fetchProducts();
   }, [page, searchTerm, filtroAvancado, ordenacao]);
 
+  // Para buscar fornecedores apenas uma vez ao carregar a página
   useEffect(() => {
+    console.log("Buscando fornecedores...");
     fetchFornecedores();
-  }, []); 
+  }, []);
 
   const getMonthsInStock = (createdAt: string) => {
     const createdDate = new Date(createdAt);

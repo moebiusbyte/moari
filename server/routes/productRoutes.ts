@@ -214,6 +214,7 @@ router.get("/products", async (req: Request, res: Response) => {
       limit = 10, 
       search, 
       category, 
+      ffornecedor,
       orderBy = "created_at",
       orderDirection = "desc"
     } = req.query;
@@ -265,6 +266,11 @@ router.get("/products", async (req: Request, res: Response) => {
     if (category) {
       queryParams.push(category);
       conditions.push(`p.category = $${queryParams.length}`);
+    }
+
+    if (ffornecedor && ffornecedor !== '') {
+      queryParams.push(ffornecedor);
+      conditions.push(`p.fornecedor_id = $${queryParams.length}`);
     }
 
     if (conditions.length > 0) {
