@@ -68,7 +68,6 @@ const ProductsPage = () => {
         tempoestoque: filtroAvancado.tempoEstoque,
         fstatus: filtroAvancado.status,
         ffornecedor: filtroAvancado.fornecedor,
-        ...filtroAvancado
       });
   
       const response = await api.get(`/products?${params}`);
