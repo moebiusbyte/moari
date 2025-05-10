@@ -3,6 +3,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
+// URL base da API
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
 // Interface para tipar a resposta da API
 interface LoginResponse {
   token: string;
@@ -18,6 +21,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Hooks para navegação e gerenciamento de autenticação
   const navigate = useNavigate();
@@ -26,12 +30,15 @@ const LoginPage = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(""); // Limpa mensagens de erro anteriores
+    setIsLoading(true); // Ativa o estado de carregamento
   
     try {
       // Realiza a requisição para o servidor de autenticação
-      const response = await fetch("/api/auth/login", {
+      const fullUrl = `${API_URL}/auth/login`;
+      console.log("Fazendo requisição para:", fullUrl);
+      
+      const response = await fetch(fullUrl, {
         method: "POST",
-        credentials: "include", // Adicionando esta linha
         headers: {
           "Content-Type": "application/json",
         },
@@ -39,6 +46,8 @@ const LoginPage = () => {
           email,
           password,
         }),
+        // Permitir credenciais (cookies) nas requisições cross-origin se necessário
+        credentials: "include",
       });
   
       // Adicionar log para debug
@@ -48,7 +57,7 @@ const LoginPage = () => {
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         console.log("Erro recebido:", errorData);
-        throw new Error(errorData?.message || "Credenciais inválidas");
+        throw new Error(errorData?.error || errorData?.message || "Credenciais inválidas");
       }
   
       // Converte a resposta para JSON
@@ -67,7 +76,9 @@ const LoginPage = () => {
     } catch (err) {
       console.error("Erro durante o login:", err);
       // Em caso de erro, exibe mensagem para o usuário
-      setError(err instanceof Error ? err.message : "Email ou senha inválidos");
+      setError(err instanceof Error ? err.message : "Email ou senha inválidos. Verifique suas credenciais.");
+    } finally {
+      setIsLoading(false); // Desativa o estado de carregamento
     }
   };
 
@@ -87,7 +98,9 @@ const LoginPage = () => {
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           {/* Exibe mensagem de erro se houver */}
           {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
+            <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-md text-sm">
+              {error}
+            </div>
           )}
 
           <div className="space-y-4">
@@ -128,8 +141,11 @@ const LoginPage = () => {
           {/* Botão de login */}
           <button
             type="submit"
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-            Entrar
+            disabled={isLoading}
+            className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+              isLoading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+            }`}>
+            {isLoading ? "Entrando..." : "Entrar"}
           </button>
         </form>
       </div>
