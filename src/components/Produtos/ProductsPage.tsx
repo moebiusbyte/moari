@@ -291,7 +291,7 @@ const ProductsPage = () => {
             <p className="text-2xl font-semibold">{estatisticas.produtosAtivos}</p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-semibold text-gray-600">Produtos Inativos</h3>
+            <h3 className="text-sm font-semibold text-gray-600">Produtos Consignados</h3>
             <p className="text-2xl font-semibold">{estatisticas.produtosInativos}</p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
