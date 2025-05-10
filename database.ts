@@ -2,15 +2,15 @@ import { Pool } from 'pg';
 import path from 'path';
 import dotenv from 'dotenv';
 
+// Carrega as variáveis de ambiente do arquivo .env
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL não está definida');
-}
+// Usa o DATABASE_URL do ambiente ou define um valor padrão para o Docker
+const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:152615@postgres-container:5433/moari';
 
 // Criar pool de conexões
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
   // Sem SSL para conexão local no Docker
   max: 5, // máximo de conexões no pool
   idleTimeoutMillis: 30000 // tempo máximo que uma conexão pode ficar ociosa
@@ -24,6 +24,7 @@ pool.on('error', (err) => {
 export async function setupDatabase() {
   try {
     console.log("Iniciando setup do banco de dados...");
+    console.log("Usando conexão:", databaseUrl.replace(/:[^:]*@/, ':***@')); // Oculta a senha no log
 
     // Testar conexão
     const client = await pool.connect();
