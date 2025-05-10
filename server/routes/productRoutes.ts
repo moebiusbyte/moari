@@ -214,7 +214,6 @@ router.get("/products", async (req: Request, res: Response) => {
       limit = 10, 
       search, 
       category, 
-      quality,
       orderBy = "created_at",
       orderDirection = "desc"
     } = req.query;
@@ -227,7 +226,6 @@ router.get("/products", async (req: Request, res: Response) => {
         COUNT(*) as total_produtos,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as produtos_ativos,
         COUNT(CASE WHEN status != 'active' OR status IS NULL THEN 1 END) as produtos_inativos,
-        COUNT(CASE WHEN has_quality_issues = true THEN 1 END) as produtos_problemas_qualidade,
         COUNT(CASE WHEN status = 'consigned' THEN 1 END) as produtos_consignados,
         COALESCE(SUM(base_price), 0) as valor_total_estoque,
         COUNT(CASE WHEN (CURRENT_DATE - created_at::date) > 180 THEN 1 END) as produtos_alerta
@@ -267,11 +265,6 @@ router.get("/products", async (req: Request, res: Response) => {
     if (category) {
       queryParams.push(category);
       conditions.push(`p.category = $${queryParams.length}`);
-    }
-
-    if (quality) {
-      queryParams.push(quality);
-      conditions.push(`p.quality = $${queryParams.length}`);
     }
 
     if (conditions.length > 0) {
@@ -326,7 +319,6 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
       name,
       category,
       format,
-      quality,
       material_type,
       usage_mode,
       size,
@@ -340,7 +332,7 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
 
     const insertQuery = `
       INSERT INTO moari.products (
-        code, name, category, format, quality, material_type,
+        code, name, category, format, material_type,
         usage_mode, size, origin, warranty, base_price,
         profit_margin, description
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
@@ -352,7 +344,6 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
       name,
       category,
       format,
-      quality,
       material_type,
       usage_mode,
       size,
@@ -412,7 +403,6 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
       name,
       category,
       format,
-      quality,
       material_type,
       usage_mode,
       size,
@@ -432,17 +422,16 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
         name = $2,
         category = $3,
         format = $4,
-        quality = $5,
-        material_type = $6,
-        usage_mode = $7,
-        size = $8,
-        origin = $9,
-        warranty = $10,
-        base_price = $11,
-        profit_margin = $12,
-        description = $13,
+        material_type = $5,
+        usage_mode = $6,
+        size = $7,
+        origin = $8,
+        warranty = $9,
+        base_price = $10,
+        profit_margin = $11,
+        description = $12,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $14
+      WHERE id = $13
       RETURNING *
     `;
 
@@ -451,7 +440,6 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
       name,
       category,
       format,
-      quality,
       material_type,
       usage_mode,
       size,
