@@ -215,7 +215,7 @@ router.get("/products", async (req: Request, res: Response) => {
       search, 
       category, 
       ffornecedor,
-      fstatus,
+      status,
       orderBy = "created_at",
       orderDirection = "desc"
     } = req.query;
@@ -268,10 +268,8 @@ router.get("/products", async (req: Request, res: Response) => {
       queryParams.push(category);
       conditions.push(`p.category = $${queryParams.length}`);
     }
-
-    if (fstatus && fstatus !== '') {
-      console.log(`Adicionando filtro para status = ${fstatus}`);
-      queryParams.push(fstatus);
+    if (status && status !== '') {
+      queryParams.push(status);
       conditions.push(`p.status = $${queryParams.length}`);
     }
 

@@ -58,20 +58,19 @@ const ProductsPage = () => {
    const fetchProducts = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "10",
-        search: searchTerm,
-        orderBy: ordenacao.campo,
-        orderDirection: ordenacao.ordem,
-        category: filtroAvancado.categoria,
-        tempoestoque: filtroAvancado.tempoEstoque,
-        ffornecedor: filtroAvancado.fornecedor,
-      });
 
-      if (filtroAvancado.status) {
-        params.append("status", filtroAvancado.status);
-      }
+      // Crie a URL base
+      let url = `/products?page=${page}&limit=10&search=${searchTerm}&orderBy=${ordenacao.campo}&orderDirection=${ordenacao.ordem}`;
+      
+      // Adicione os outros filtros se existirem
+      if (filtroAvancado.categoria) url += `&category=${filtroAvancado.categoria}`;
+      if (filtroAvancado.tempoEstoque) url += `&tempoestoque=${filtroAvancado.tempoEstoque}`;
+      if (filtroAvancado.fornecedor) url += `&ffornecedor=${filtroAvancado.fornecedor}`;
+      
+      // Adicione o filtro de status DIRETAMENTE na URL
+      if (filtroAvancado.status) url += `&status=${filtroAvancado.status}`;
+      
+      console.log("URL completa:", url);
 
       const response = await api.get(`/products?${params}`);
       
