@@ -335,7 +335,7 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
         code, name, category, format, material_type,
         usage_mode, size, origin, warranty, base_price,
         profit_margin, description
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `;
 
