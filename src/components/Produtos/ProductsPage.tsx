@@ -72,7 +72,7 @@ const ProductsPage = () => {
       
       console.log("URL completa:", url);
 
-      const response = await api.get(`/products?${params}`);
+      const response = await api.get(url);
       
       // Verifica se a resposta tem a estrutura esperada
       if (response.data && response.data.products) {
