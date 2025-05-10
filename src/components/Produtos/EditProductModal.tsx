@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Product } from '../../types/product';
+import api from '../../../server/api/axiosConfig';
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
   product
 }) => {
   const [formData, setFormData] = useState<Partial<Product>>({});
+  const [fornecedores, setFornecedores] = useState<{ id: number; nome: string }[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,16 +31,29 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
         code: product.code,
         name: product.name,
         category: product.category,
-        quality: product.quality,
         material_type: product.material_type,
         size: product.size,
         base_price: product.base_price,
         profit_margin: product.profit_margin,
         description: product.description,
+        supplier: product.supplier,
         status: product.status
       });
+      fetchFornecedores(); 
     }
   }, [product]);
+
+  const fetchFornecedores = async () => {
+    try {
+      const response = await api.get("/suppliers");
+      if (response.data) {
+        setFornecedores(response.data);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar fornecedores:", error);
+    }
+  };
+  
 
   const validateNumberInput = (value: string, maxValue: number) => {
     const numValue = parseFloat(value);
@@ -160,6 +175,25 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
                 <option value="brincos">Brincos</option>
                 <option value="aneis">Anéis</option>
                 <option value="pulseiras">Pulseiras</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fornecedor
+              </label>
+              <select
+                name="fornecedor"
+                value={produto.fornecedor}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-gray-300 p-2"
+              >
+                <option value="">Selecione...</option>
+                {fornecedores.map(fornecedor => (
+                  <option key={fornecedor.id} value={fornecedor.id.toString()}>
+                    {fornecedor.nome}
+                  </option>
+                ))}
               </select>
             </div>
 

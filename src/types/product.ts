@@ -15,6 +15,7 @@ export interface Product {
   updated_at: string;
   base_price: number;
   profit_margin: number;
+  supplier: string;
   has_quality_issues: boolean;
   created_at: string;
   status: 'active' | 'inactive' | 'consigned';
