@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
+console.log("API URL:", import.meta.env.VITE_API_URL || "http://localhost:3001");
+
 // URL base da API
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -34,8 +36,9 @@ const LoginPage = () => {
   
     try {
       // Realiza a requisição para o servidor de autenticação
-      const fullUrl = `${API_URL}/auth/login`; // Sem o '/api' se a rota no backend não tiver este prefixo
+      const fullUrl = `${API_URL}/auth/login`; 
       console.log("Fazendo requisição para:", fullUrl);
+      console.log("Dados enviados:", { email, password });
       
       const response = await fetch(fullUrl, {
         method: "POST",
