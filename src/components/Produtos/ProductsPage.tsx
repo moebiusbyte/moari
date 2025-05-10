@@ -10,6 +10,7 @@ import CadastroProdutos from "./CadastroProdutos";
 import EditProductModal from './EditProductModal';
 import DeleteProductModal from './DeleteProductModal';
 import api from "../../../server/api/axiosConfig";
+import type { Fornecedor } from '../Fornecedores/FornecedoresPage';
 import type { Product } from "../../types/product";
 
 const ProductsPage = () => {
@@ -21,6 +22,7 @@ const ProductsPage = () => {
 
   // Estados para dados e paginação
   const [products, setProducts] = useState<Product[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -92,10 +94,25 @@ const ProductsPage = () => {
     }
   };
 
-  // Atualizar produtos quando mudar página, busca ou filtros
+  const fetchFornecedores = async () => {
+    try {
+      const response = await api.get("/suppliers");
+      if (response.data) {
+        setFornecedores(response.data);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar fornecedores:", error);
+    }
+  };
+
+  // Atualizar produtos e fornecedores quando mudar página, busca ou filtros
   useEffect(() => {
     fetchProducts();
   }, [page, searchTerm, filtroAvancado, ordenacao]);
+
+  useEffect(() => {
+    fetchFornecedores();
+  }, []); 
 
   const getMonthsInStock = (createdAt: string) => {
     const createdDate = new Date(createdAt);
@@ -319,7 +336,11 @@ const ProductsPage = () => {
           onChange={(e) => setFiltroAvancado(prev => ({...prev, fornecedor: e.target.value}))}
           className="border rounded-lg px-6 py-2">
           <option value="">Fornecedor</option>
-          {/* Opções dinâmicas de fornecedores */}
+          {fornecedores.map(fornecedor => (
+            <option key={fornecedor.id} value={fornecedor.id.toString()}>
+              {fornecedor.nome}
+            </option>
+          ))}
         </select>
 
         <select
