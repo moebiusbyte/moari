@@ -335,14 +335,15 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
       profit_margin,
       description,
       materials,
+      fornecedor_id,
     } = req.body;
 
     const insertQuery = `
       INSERT INTO moari.products (
         code, name, category, format, material_type,
         usage_mode, size, origin, warranty, base_price,
-        profit_margin, description
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        profit_margin, description, fornecedor_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
     `;
 
@@ -359,6 +360,7 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
       base_price,
       profit_margin,
       description,
+      fornecedor_id,
     ]);
 
     const product = productResult.rows[0];
@@ -419,6 +421,7 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
       profit_margin,
       description,
       materials,
+      fornecedor_id,
       removed_images
     } = req.body;
 
@@ -437,8 +440,9 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
         base_price = $10,
         profit_margin = $11,
         description = $12,
+        fornecedor_id = $13,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $13
+      WHERE id = $14
       RETURNING *
     `;
 
@@ -455,6 +459,7 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
       base_price,
       profit_margin,
       description,
+      fornecedor_id,
       id
     ]);
 

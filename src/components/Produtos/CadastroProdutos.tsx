@@ -372,27 +372,27 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                   <option value="pulseiras">Pulseiras</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fornecedor
+                </label>
+                <select
+                  name="fornecedor"
+                  value={produto.fornecedor}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-gray-300 p-2"
+                >
+                  <option value="">Selecione...</option>
+                  {fornecedores.map(fornecedor => (
+                    <option key={fornecedor.id} value={fornecedor.id.toString()}>
+                      {fornecedor.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fornecedor
-              </label>
-              <select
-                name="fornecedor"
-                value={produto.fornecedor}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-gray-300 p-2"
-              >
-                <option value="">Selecione...</option>
-                {fornecedores.map(fornecedor => (
-                  <option key={fornecedor.id} value={fornecedor.id.toString()}>
-                    {fornecedor.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+            
             {/* Características */}
             <div className="space-y-4">
               <div>
