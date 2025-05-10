@@ -36,7 +36,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
         base_price: product.base_price,
         profit_margin: product.profit_margin,
         description: product.description,
-        supplier: product.supplier,
+        fornecedor_id: product.fornecedor_id,
         status: product.status
       });
       fetchFornecedores(); 
@@ -183,8 +183,8 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
                 Fornecedor
               </label>
               <select
-                name="fornecedor"
-                value={produto.fornecedor}
+                name="fornecedor_id"  // Mudança importante aqui também!
+                value={formData.fornecedor_id || ''}
                 onChange={handleChange}
                 className="w-full rounded-lg border border-gray-300 p-2"
               >
@@ -194,23 +194,6 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
                     {fornecedor.nome}
                   </option>
                 ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Qualidade
-              </label>
-              <select
-                name="quality"
-                value={formData.quality || ''}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-gray-300 p-2"
-              >
-                <option value="">Selecione...</option>
-                <option value="alta">Alta</option>
-                <option value="media">Média</option>
-                <option value="baixa">Baixa</option>
               </select>
             </div>
 
