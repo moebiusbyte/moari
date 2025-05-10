@@ -137,12 +137,18 @@ app.post("/auth/register", async (req: Request, res: Response, next: NextFunctio
       throw err;
     });
 
-    console.log("10. Usuário inserido com sucesso:", result[0]);
+    // Verificar se result existe e tem pelo menos um elemento
+    if (result && result.length > 0) {
+      console.log("10. Usuário inserido com sucesso:", result[0]);
 
-    res.status(201).json({
-      message: "Usuário registrado com sucesso",
-      user: result[0],
-    });
+      res.status(201).json({
+        message: "Usuário registrado com sucesso",
+        user: result[0],
+      });
+    } else {
+      // Tratar o caso em que não há resultado
+      throw new Error("Erro ao inserir usuário: nenhum resultado retornado");
+    }
   } catch (error) {
     console.error("11. Erro no processo de registro:", error);
     next(error);
@@ -195,20 +201,33 @@ app.post("/auth/login", async (req: Request, res: Response, next: NextFunction) 
 app.get("/ping", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await query(`SELECT NOW()`);
-    res.json({
-      message: "pong",
-      timestamp: result[0].now,
-    });
+    
+    // Verificar se result existe e tem pelo menos um elemento
+    if (result && result.length > 0) {
+      res.json({
+        message: "pong",
+        timestamp: result[0].now,
+      });
+    } else {
+      // Resposta padrão caso não haja resultado
+      res.json({
+        message: "pong",
+        timestamp: new Date().toISOString(),
+      });
+    }
   } catch (error) {
     next(error);
   }
 });
 
-app._router.stack.forEach((r: any) => {
-  if (r.route && r.route.path) {
-    console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
-  }
-});
+// Imprimir rotas disponíveis
+if (app._router) {
+  app._router.stack.forEach((r: any) => {
+    if (r.route && r.route.path) {
+      console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
+    }
+  });
+}
 
 // Adiciona o middleware de tratamento de erros
 app.use(errorHandler);
@@ -224,11 +243,14 @@ async function startServer() {
       console.log(`- PORT: ${PORT}`);
       console.log(`- HOST: ${HOST}`);
       console.log(`- NODE_ENV: ${process.env.NODE_ENV}`);
-      app._router.stack.forEach((r: any) => {
-        if (r.route && r.route.path) {
-          console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
-        }
-      });
+      
+      if (app._router) {
+        app._router.stack.forEach((r: any) => {
+          if (r.route && r.route.path) {
+            console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
+          }
+        });
+      }
     });
 
   } catch (error) {
