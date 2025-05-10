@@ -11,9 +11,7 @@ if (!process.env.DATABASE_URL) {
 // Criar pool de conexões
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // necessário para Neon DB
-  },
+  // Sem SSL para conexão local no Docker
   max: 5, // máximo de conexões no pool
   idleTimeoutMillis: 30000 // tempo máximo que uma conexão pode ficar ociosa
 });
@@ -47,102 +45,122 @@ export async function setupDatabase() {
         )`);
       console.log("Tabela users verificada/criada com sucesso");
 
-    // Criar tabela products
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS moari.products (
-        id SERIAL PRIMARY KEY,
-        code VARCHAR(50) UNIQUE NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        category VARCHAR(100) NOT NULL,
-        format VARCHAR(100),
-        quality VARCHAR(50),
-        material_type VARCHAR(100),
-        usage_mode VARCHAR(255),
-        size VARCHAR(50),
-        origin VARCHAR(100),
-        warranty VARCHAR(255),
-        base_price DECIMAL(10,2) NOT NULL,
-        profit_margin DECIMAL(5,2),
-        description TEXT,
-        status VARCHAR(50) DEFAULT 'active',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )`);
-    console.log("Tabela products verificada/criada com sucesso");
+      // Criar tabela suppliers
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS moari.suppliers (
+          id SERIAL PRIMARY KEY,
+          nome VARCHAR(255) NOT NULL,
+          contato VARCHAR(255),
+          telefone VARCHAR(100),
+          email VARCHAR(255),
+          cidade VARCHAR(100),
+          estado VARCHAR(50),
+          endereco TEXT,
+          ultima_compra TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )`);
+      console.log("Tabela suppliers verificada/criada com sucesso");
 
-    // Criar tabela product_materials
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS moari.product_materials (
-        id SERIAL PRIMARY KEY,
-        product_id INTEGER REFERENCES moari.products(id) ON DELETE CASCADE,
-        material_name VARCHAR(100) NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )`);
-    console.log("Tabela product_materials verificada/criada com sucesso");
+      // Criar tabela products
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS moari.products (
+          id SERIAL PRIMARY KEY,
+          code VARCHAR(50) UNIQUE NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          category VARCHAR(100) NOT NULL,
+          format VARCHAR(100),
+          quality VARCHAR(50),
+          material_type VARCHAR(100),
+          usage_mode VARCHAR(255),
+          size VARCHAR(50),
+          origin VARCHAR(100),
+          warranty VARCHAR(255),
+          base_price DECIMAL(10,2) NOT NULL,
+          profit_margin DECIMAL(5,2),
+          description TEXT,
+          status VARCHAR(50) DEFAULT 'active',
+          fornecedor_id INTEGER REFERENCES moari.suppliers(id),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )`);
+      console.log("Tabela products verificada/criada com sucesso");
 
-    // Criar tabela product_images
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS moari.product_images (
-        id SERIAL PRIMARY KEY,
-        product_id INTEGER REFERENCES moari.products(id) ON DELETE CASCADE,
-        image_url VARCHAR(500) NOT NULL,
-        order_index INTEGER NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )`);
-    console.log("Tabela product_images verificada/criada com sucesso");
+      // Criar tabela product_materials
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS moari.product_materials (
+          id SERIAL PRIMARY KEY,
+          product_id INTEGER REFERENCES moari.products(id) ON DELETE CASCADE,
+          material_name VARCHAR(100) NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )`);
+      console.log("Tabela product_materials verificada/criada com sucesso");
 
-    // Criar índices
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_products_code ON moari.products(code)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_products_category ON moari.products(category)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_products_status ON moari.products(status)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_product_materials_product_id ON moari.product_materials(product_id)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON moari.product_images(product_id)`);
-    console.log("Índices verificados/criados com sucesso");
+      // Criar tabela product_images
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS moari.product_images (
+          id SERIAL PRIMARY KEY,
+          product_id INTEGER REFERENCES moari.products(id) ON DELETE CASCADE,
+          image_url VARCHAR(500) NOT NULL,
+          order_index INTEGER NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )`);
+      console.log("Tabela product_images verificada/criada com sucesso");
 
-    // Criar função para atualizar updated_at
-    await client.query(`
-      CREATE OR REPLACE FUNCTION update_updated_at_column()
-      RETURNS TRIGGER AS $$
-      BEGIN
-          NEW.updated_at = CURRENT_TIMESTAMP;
-          RETURN NEW;
-      END;
-      $$ language 'plpgsql'`);
+      // Criar índices
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_products_code ON moari.products(code)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_products_category ON moari.products(category)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_products_status ON moari.products(status)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_product_materials_product_id ON moari.product_materials(product_id)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON moari.product_images(product_id)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_suppliers_nome ON moari.suppliers(nome)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_suppliers_cidade ON moari.suppliers(cidade)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_suppliers_estado ON moari.suppliers(estado)`);
+      console.log("Índices verificados/criados com sucesso");
 
-    // Criar trigger para updated_at
-    await client.query(`DROP TRIGGER IF EXISTS update_products_updated_at ON moari.products`);
-    await client.query(`
-      CREATE TRIGGER update_products_updated_at
-          BEFORE UPDATE ON moari.products
-          FOR EACH ROW
-          EXECUTE FUNCTION update_updated_at_column()`);
-    console.log("Função e trigger para updated_at criados com sucesso");
+      // Criar função para atualizar updated_at
+      await client.query(`
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = CURRENT_TIMESTAMP;
+            RETURN NEW;
+        END;
+        $$ language 'plpgsql'`);
 
-    // Criar função para validação de preço
-    await client.query(`
-      CREATE OR REPLACE FUNCTION validate_product_price()
-      RETURNS TRIGGER AS $$
-      BEGIN
-          IF NEW.base_price <= 0 THEN
-              RAISE EXCEPTION 'O preço base deve ser maior que zero';
-          END IF;
-          
-          IF NEW.profit_margin < 0 THEN
-              RAISE EXCEPTION 'A margem de lucro não pode ser negativa';
-          END IF;
-          
-          RETURN NEW;
-      END;
-      $$ language 'plpgsql'`);
+      // Criar trigger para updated_at
+      await client.query(`DROP TRIGGER IF EXISTS update_products_updated_at ON moari.products`);
+      await client.query(`
+        CREATE TRIGGER update_products_updated_at
+            BEFORE UPDATE ON moari.products
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column()`);
+      console.log("Função e trigger para updated_at criados com sucesso");
 
-    // Criar trigger para validação de preço
-    await client.query(`DROP TRIGGER IF EXISTS validate_product_price_trigger ON moari.products`);
-    await client.query(`
-      CREATE TRIGGER validate_product_price_trigger
-          BEFORE INSERT OR UPDATE ON moari.products
-          FOR EACH ROW
-          EXECUTE FUNCTION validate_product_price()`);
-    console.log("Função e trigger para validação de preços criados com sucesso");
+      // Criar função para validação de preço
+      await client.query(`
+        CREATE OR REPLACE FUNCTION validate_product_price()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            IF NEW.base_price <= 0 THEN
+                RAISE EXCEPTION 'O preço base deve ser maior que zero';
+            END IF;
+            
+            IF NEW.profit_margin < 0 THEN
+                RAISE EXCEPTION 'A margem de lucro não pode ser negativa';
+            END IF;
+            
+            RETURN NEW;
+        END;
+        $$ language 'plpgsql'`);
+
+      // Criar trigger para validação de preço
+      await client.query(`DROP TRIGGER IF EXISTS validate_product_price_trigger ON moari.products`);
+      await client.query(`
+        CREATE TRIGGER validate_product_price_trigger
+            BEFORE INSERT OR UPDATE ON moari.products
+            FOR EACH ROW
+            EXECUTE FUNCTION validate_product_price()`);
+      console.log("Função e trigger para validação de preços criados com sucesso");
 
     } finally {
       client.release();

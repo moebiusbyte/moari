@@ -1,11 +1,10 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
 import productsRoutes from './routes/productRoutes';
 import fornecedoresRoutes from './routes/fornecedoresRoutes';
-import { pool, setupDatabase } from '../database';
+import { pool, setupDatabase, query } from '../database';
 
 dotenv.config();
 
@@ -23,9 +22,6 @@ const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error("DATABASE_URL não está definida no arquivo .env");
 }
-
-// Conexão com o banco de dados
-const sql = neon(databaseUrl);
 
 // Configuração do CORS
 app.use(
@@ -110,16 +106,17 @@ app.post("/auth/register", async (req: Request, res: Response, next: NextFunctio
     }
 
     console.log("3. Verificando se usuário já existe");
-    const existingUser = await sql`
-      SELECT email FROM users WHERE email = ${email}
-    `.catch(err => {
+    const existingUser = await query(
+      `SELECT email FROM moari.users WHERE email = $1`, 
+      [email]
+    ).catch(err => {
       console.error("4. Erro ao consultar banco:", err);
       throw err;
     });
 
     console.log("5. Resultado da verificação:", existingUser);
 
-    if (existingUser.length > 0) {
+    if (existingUser && existingUser.length > 0) {
       console.log("6. Usuário já existe");
       const error: ApiError = new Error("Email já cadastrado");
       error.status = 400;
@@ -130,11 +127,12 @@ app.post("/auth/register", async (req: Request, res: Response, next: NextFunctio
     const hashedPassword = await bcrypt.hash(password, 10);
 
     console.log("8. Inserindo usuário no banco");
-    const result = await sql`
-      INSERT INTO moari.users (name, email, password)
-      VALUES (${name}, ${email}, ${hashedPassword})
-      RETURNING id, name, email
-    `.catch(err => {
+    const result = await query(
+      `INSERT INTO moari.users (name, email, password)
+       VALUES ($1, $2, $3)
+       RETURNING id, name, email`,
+      [name, email, hashedPassword]
+    ).catch(err => {
       console.error("9. Erro ao inserir no banco:", err);
       throw err;
     });
@@ -162,11 +160,12 @@ app.post("/auth/login", async (req: Request, res: Response, next: NextFunction) 
       throw error;
     }
 
-    const users = await sql`
-      SELECT * FROM moari.users WHERE email = ${email}
-    `;
+    const users = await query(
+      `SELECT * FROM moari.users WHERE email = $1`,
+      [email]
+    );
 
-    if (users.length === 0) {
+    if (!users || users.length === 0) {
       const error: ApiError = new Error("Email ou senha inválidos");
       error.status = 401;
       throw error;
@@ -195,7 +194,7 @@ app.post("/auth/login", async (req: Request, res: Response, next: NextFunction) 
 // Rota de teste
 app.get("/ping", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = await sql`SELECT NOW()`;
+    const result = await query(`SELECT NOW()`);
     res.json({
       message: "pong",
       timestamp: result[0].now,

@@ -1,14 +1,13 @@
 import express, { Router, Request, Response, RequestHandler } from "express";
 import { ParamsDictionary } from 'express-serve-static-core';
-import { Pool } from "pg";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
+import { pool, query } from '../../database'; // Importar a função query do arquivo database.ts
 
 dotenv.config();
 
 const router: Router = express.Router();
-
 
 interface DeleteProductParams extends ParamsDictionary {
   id: string;
@@ -19,13 +18,6 @@ interface ApiError extends Error {
   status?: number;
   detail?: string;
 }
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -405,40 +397,7 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
 });
 
 router.delete('/products/:id', (async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { id } = req.params;
-    
-    await client.query('BEGIN');
-    
-    await client.query(
-      'DELETE FROM moari.product_images WHERE product_id = $1',
-      [id]
-    );
-
-    await client.query(
-      'DELETE FROM moari.product_materials WHERE product_id = $1',
-      [id]
-    );
-
-    const result = await client.query(
-      'DELETE FROM moari.products WHERE id = $1 RETURNING *',
-      [id]
-    );
-
-    await client.query('COMMIT');
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ message: 'Produto não encontrado' });
-    }
-
-    res.status(200).json({ message: 'Produto deletado com sucesso' });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    handleDatabaseError(error, res);
-  } finally {
-    client.release();
-  }
+  await deleteProduct(req, res);
 }) as RequestHandler);
 
 router.put("/products/:id", upload.array("images", 5), async (req, res) => {
