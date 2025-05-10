@@ -74,7 +74,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
 
   const fetchFornecedores = async () => {
     try {
-      const response = await api.get("/api/suppliers");
+      const response = await api.get("/suppliers");
       if (response.data) {
         setFornecedores(response.data);
       }
