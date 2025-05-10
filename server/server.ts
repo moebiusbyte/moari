@@ -33,6 +33,7 @@ app.use(
       "http://localhost:5174",
       "http://192.168.241.2:5173",
       "http://192.168.16.1:5173",
+      "172.18.0.2",
       /\.csb\.app$/
     ],
     credentials: true,
