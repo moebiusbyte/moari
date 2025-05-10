@@ -377,7 +377,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                   Fornecedor *
                 </label>
                 <select
-                  name="fornecedor"
+                  name="fornecedor_id"
                   value={produto.fornecedor_id}
                   onChange={handleChange}
                   className="w-full rounded-lg border border-gray-300 p-2"
