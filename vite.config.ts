@@ -14,10 +14,10 @@ export default defineConfig({
     allowedHosts: ["v3rks3-5173.csb.app", ".csb.app", "localhost", "127.0.0.1"],
     proxy: {
       "/api": {
-        target: "http://localhost:3001", // Voltando para localhost
+        target: "http://172.18.0.2:3001", // Alterado para usar o IP do container backend
         changeOrigin: true,
         secure: false,
-        ws: true, // Adicionando suporte a WebSocket
+        ws: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
         configure: (proxy, options) => {
           proxy.on("error", (err, req, res) => {

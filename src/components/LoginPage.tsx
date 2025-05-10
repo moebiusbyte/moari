@@ -3,11 +3,6 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-console.log("API URL:", import.meta.env.VITE_API_URL || "http://localhost:3001");
-
-// URL base da API
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
-
 // Interface para tipar a resposta da API
 interface LoginResponse {
   token: string;
@@ -35,8 +30,8 @@ const LoginPage = () => {
     setIsLoading(true); // Ativa o estado de carregamento
   
     try {
-      // Realiza a requisição para o servidor de autenticação
-      const fullUrl = `${API_URL}/auth/login`; 
+      // Usa a rota relativa que será interceptada pelo proxy do Vite
+      const fullUrl = `/api/auth/login`;
       console.log("Fazendo requisição para:", fullUrl);
       console.log("Dados enviados:", { email, password });
       
@@ -49,8 +44,6 @@ const LoginPage = () => {
           email,
           password,
         }),
-        // Permitir credenciais (cookies) nas requisições cross-origin se necessário
-        credentials: "include",
       });
   
       // Adicionar log para debug
