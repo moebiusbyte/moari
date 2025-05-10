@@ -225,6 +225,7 @@ const ProductsPage = () => {
         profit_margin: produto.margemLucro,
         description: produto.descricao,
         materials: produto.materiaisComponentes,
+        fornecedor_id: produto.fornecedor,
       };
 
       Object.entries(apiData).forEach(([key, value]) => {

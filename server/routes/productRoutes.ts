@@ -269,10 +269,11 @@ router.get("/products", async (req: Request, res: Response) => {
     }
 
     if (ffornecedor && ffornecedor !== '') {
+      console.log(`Adicionando filtro para fornecedor_id = ${ffornecedor}`);
       queryParams.push(ffornecedor);
       conditions.push(`p.fornecedor_id = $${queryParams.length}`);
     }
-
+    
     if (conditions.length > 0) {
       queryText += ` WHERE ${conditions.join(" AND ")}`;
     }

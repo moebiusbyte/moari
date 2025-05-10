@@ -52,6 +52,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   onSave,
 }) => {
   const [produto, setProduto] = useState<ProdutoFormData>(produtoInicial);
+  const [fornecedores, setFornecedores] = useState<{ id: number; nome: string }[]>([]);
   const [imagens, setImagens] = useState<File[]>([]);
   const [previewImagens, setPreviewImagens] = useState<string[]>([]);
   const [novoMaterial, setNovoMaterial] = useState("");
@@ -66,11 +67,23 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     if (isOpen) {
       console.log("Modal está aberto:", isOpen);
       generateProductCode();
+      fetchFornecedores(); 
       // ... outras inicializações
     }    
   }, [isOpen]);
 
+  const fetchFornecedores = async () => {
+    try {
+      const response = await api.get("/api/suppliers");
+      if (response.data) {
+        setFornecedores(response.data);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar fornecedores:", error);
+    }
+  };
   
+
   const generateProductCode = async () => {
     try {
       setLoading(true); // Define o estado como "carregando"
@@ -361,25 +374,27 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fornecedor
+              </label>
+              <select
+                name="fornecedor"
+                value={produto.fornecedor}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-gray-300 p-2"
+              >
+                <option value="">Selecione...</option>
+                {fornecedores.map(fornecedor => (
+                  <option key={fornecedor.id} value={fornecedor.id.toString()}>
+                    {fornecedor.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Características */}
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Qualidade
-                </label>
-                <select
-                  name="qualidade"
-                  value={produto.qualidade}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 p-2"
-                >
-                  <option value="">Selecione...</option>
-                  <option value="alta">Alta</option>
-                  <option value="media">Média</option>
-                  <option value="baixa">Baixa</option>
-                </select>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tipo de Material
