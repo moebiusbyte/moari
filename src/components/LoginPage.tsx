@@ -34,7 +34,7 @@ const LoginPage = () => {
   
     try {
       // Realiza a requisição para o servidor de autenticação
-      const fullUrl = `${API_URL}/auth/login`;
+      const fullUrl = `${API_URL}/auth/login`; // Sem o '/api' se a rota no backend não tiver este prefixo
       console.log("Fazendo requisição para:", fullUrl);
       
       const response = await fetch(fullUrl, {
