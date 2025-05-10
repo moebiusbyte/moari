@@ -66,10 +66,13 @@ const ProductsPage = () => {
         orderDirection: ordenacao.ordem,
         category: filtroAvancado.categoria,
         tempoestoque: filtroAvancado.tempoEstoque,
-        fstatus: filtroAvancado.status,
         ffornecedor: filtroAvancado.fornecedor,
       });
-  
+
+      if (filtroAvancado.status) {
+        params.append("status", filtroAvancado.status);
+      }
+
       const response = await api.get(`/products?${params}`);
       
       // Verifica se a resposta tem a estrutura esperada
