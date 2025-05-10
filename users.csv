@@ -1,0 +1,5 @@
+"id","name","email","password","created_at"
+"1","Maira","maira@email.com","$2b$10$GUtZphsFDD8EzU6FVh6UBOk47yu1MMHjEmuWzacXFQ/LAYcluK7Uy","2025-02-08 19:25:50.979257+00"
+"2","Teste","teste@email.com","$2b$10$8NnLxU3ehR1infNG44uBy.SLOx8vBZ.QJZRoEtKjURIkSWjIoA/dC","2025-02-10 12:03:22.936568+00"
+"3","Teste3","teste3@email.com","$2b$10$DZLtQziQc18wG93Y.OB9XevLpInFiHo.qHpiEK/5py0SGtycw/Azy","2025-02-10 12:06:50.966154+00"
+"4","Rita","rita@email.com","$2a$10$gmW93Bg4BNIqMA5T.Z.HjeOnc.a2Bcvyo3v7XMNkjIoOkhfA5WuC.","2025-02-14 16:21:35.538481+00"
