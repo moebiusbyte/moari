@@ -15,7 +15,7 @@ interface ProdutoFormData {
   materiaisComponentes: string[];
   origem: string;
   garantia: string; 
-  fornecedor: string;
+  fornecedor_id: string;
   precoBase: string;
   margemLucro: string;
   descricao: string;
@@ -39,7 +39,7 @@ const produtoInicial: ProdutoFormData = {
   materiaisComponentes: [] as string[],
   origem: "",
   garantia: "false", // Adicionado o campo garantia
-  fornecedor: "",
+  fornecedor_id: "",
   precoBase: "",
   margemLucro: "",
   descricao: "",
@@ -259,7 +259,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   };
 
   const handleSave = async () => {
-    if (!produto.nome || !produto.codigo || !produto.categoria) {
+    if (!produto.nome || !produto.codigo || !produto.categoria || !produto.fornecedor_id) {
       setAlertaPreco({
         tipo: "error",
         mensagem: "Por favor, preencha todos os campos obrigatórios",
@@ -374,13 +374,14 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fornecedor
+                  Fornecedor *
                 </label>
                 <select
                   name="fornecedor"
-                  value={produto.fornecedor}
+                  value={produto.fornecedor_id}
                   onChange={handleChange}
                   className="w-full rounded-lg border border-gray-300 p-2"
+                  required
                 >
                   <option value="">Selecione...</option>
                   {fornecedores.map(fornecedor => (

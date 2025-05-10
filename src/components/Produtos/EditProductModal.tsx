@@ -180,13 +180,14 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fornecedor
+                Fornecedor *
               </label>
               <select
                 name="fornecedor_id"  // Mudança importante aqui também!
                 value={formData.fornecedor_id || ''}
                 onChange={handleChange}
                 className="w-full rounded-lg border border-gray-300 p-2"
+                required
               >
                 <option value="">Selecione...</option>
                 {fornecedores.map(fornecedor => (
