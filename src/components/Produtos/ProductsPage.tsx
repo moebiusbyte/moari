@@ -206,6 +206,11 @@ const ProductsPage = () => {
     }
   };
 
+  const calcularPrecoFinal = (precoBase: number | string, margem: number | string) => {
+    const precoSugerido = Number(precoBase) * (1 + Number(margem) / 100);
+    return Math.ceil(precoSugerido * 100) / 100;
+  };
+
   // Handler para salvar novo produto
   const handleSaveProduto = async (produto: any, imagens: File[]) => {
     try {
@@ -402,8 +407,10 @@ const ProductsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">R$ {Number(product.base_price).toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">R$ {Number(product.profit_margin).toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"></td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">% {Number(product.profit_margin).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      R$ {calcularPrecoFinal(product.base_price, product.profit_margin).toFixed(2)}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -435,7 +442,7 @@ const ProductsPage = () => {
                       </button>
                       <button
                         className="text-red-600 hover:text-red-900 mr-3"
-                        onClick={() => handleDeleteProduct(product.id)}
+                        onClick={() => handleDeleteProduct(String(product.id))}
                         title="Excluir Produto">
                         <Trash2 size={18} />
                       </button>
@@ -505,7 +512,7 @@ const ProductsPage = () => {
             setSelectedProduct(null);
           }}
           onConfirm={handleConfirmDelete}
-          productId={selectedProduct.id}
+          productId={String(selectedProduct.id)}
           productName={selectedProduct.name}/>
       )}
     </div>
