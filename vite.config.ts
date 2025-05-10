@@ -14,7 +14,7 @@ export default defineConfig({
     allowedHosts: ["v3rks3-5173.csb.app", ".csb.app", "localhost", "127.0.0.1"],
     proxy: {
       "/api": {
-        target: "http:///ubuntu-container:3001", // Alterado para usar o IP do container backend
+        target: "http://ubuntu-container:3001", // Alterado para usar o IP do container backend
         changeOrigin: true,
         secure: false,
         ws: true,
