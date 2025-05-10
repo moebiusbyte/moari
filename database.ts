@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Usa o DATABASE_URL do ambiente ou define um valor padrão para o Docker
-const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:152615@postgres-container:5433/moari';
+const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:152615@postgres-container:5432/moari';
 
 // Criar pool de conexões
 const pool = new Pool({
