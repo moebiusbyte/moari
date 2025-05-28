@@ -8,7 +8,12 @@ const getBaseUrl = () => {
     // Substitui a porta 5173 por 3001 mantendo o mesmo domínio
     return currentUrl.replace("-5173", "-3001") + "/api";
   }
-  return import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+  // Caso contrário, usa o hostname atual com a porta do backend (3001)
+  // Prioriza VITE_API_URL se definido
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  return `${window.location.protocol}//${window.location.hostname}:3001/api`;
 };
 
 const api = axios.create({
@@ -34,13 +39,11 @@ api.interceptors.request.use((request) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error("API Error:", {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      data: error.response?.data,
-      error: error.response || error
-    });
+    console.error("API Error:", error.message);
+    if (error.response) {
+      console.error("API Response Status:", error.response.status);
+      console.error("API Response Data:", error.response.data);
+    }
     return Promise.reject(error);
   }
 );

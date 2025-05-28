@@ -30,7 +30,6 @@ import RelatoriosPage from "./components/RelatoriosPage";
 import SignUpPage from "./components/SignUpPage";
 import Saudacao from "./components/Saudacao";
 import DataAtual from "./components/DataAtual";
-import FotoPerfil from "./components/FotoPerfil";
 
 // Componente que controla o acesso às rotas protegidas
 const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({
@@ -132,9 +131,6 @@ const Layout = () => {
           <div className="display-flex items-center space-x-1">
             <div className="flex items-center">
               <span className="mr-4 text-lg-2 text-gray-900">{/*user.name*/}</span>
-              <div className="h-13 w-39 rounded-full bg-red-400">
-                <FotoPerfil />
-              </div>
             </div>
           </div>
         </div>

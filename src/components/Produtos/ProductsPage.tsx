@@ -11,6 +11,7 @@ import EditProductModal from './EditProductModal';
 import DeleteProductModal from './DeleteProductModal';
 import api from "../../../server/api/axiosConfig";
 import type { Product } from "../../types/product";
+import type { Supplier } from "../../types/supplier";
 
 const ProductsPage = () => {
   // Estados para modais
@@ -25,6 +26,9 @@ const ProductsPage = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Estado para fornecedores (para o filtro)
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   // Estado para filtros avançados
   const [filtroAvancado, setFiltroAvancado] = useState({
@@ -65,8 +69,7 @@ const ProductsPage = () => {
         category: filtroAvancado.categoria,
         tempoestoque: filtroAvancado.tempoEstoque,
         fstatus: filtroAvancado.status,
-        ffornecedor: filtroAvancado.fornecedor,
-        ...filtroAvancado
+        ffornecedor: filtroAvancado.fornecedor
       });
   
       const response = await api.get(`/products?${params}`);
@@ -92,6 +95,25 @@ const ProductsPage = () => {
     }
   };
 
+  // Função para buscar fornecedores para o filtro
+  const fetchSuppliers = async () => {
+    try {
+      const response = await api.get("/suppliers"); // Assuming this is your endpoint
+      // Assuming the backend returns an array of suppliers directly, or in a 'suppliers' property
+      console.log("API response for suppliers:", response.data);
+      const suppliersData = response.data.suppliers || response.data;
+      if (Array.isArray(suppliersData)) { // Check if response.data is an array
+        setSuppliers(suppliersData);
+      } else {
+        console.error("API response for suppliers is not an array:", response.data);
+        setSuppliers([]); // Set to empty array in case of unexpected response
+      }
+    } catch (error) {
+      console.error("Erro ao buscar fornecedores:", error);
+      setSuppliers([]); // Set to empty array in case of error
+    }
+  };
+
   // Atualizar produtos quando mudar página, busca ou filtros
   useEffect(() => {
     fetchProducts();
@@ -101,6 +123,11 @@ const ProductsPage = () => {
     const createdDate = new Date(createdAt);
     return Math.floor((new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
   };
+
+  // Buscar fornecedores ao carregar a página
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
 
   // Handler para edição de produto
   const handleEditProduct = (product: Product) => {
@@ -319,7 +346,9 @@ const ProductsPage = () => {
           onChange={(e) => setFiltroAvancado(prev => ({...prev, fornecedor: e.target.value}))}
           className="border rounded-lg px-6 py-2">
           <option value="">Fornecedor</option>
-          {/* Opções dinâmicas de fornecedores */}
+          {suppliers.map(supplier => (
+            <option key={supplier.id} value={supplier.id}>{supplier.nome || 'Fornecedor Desconhecido'}</option>
+          ))}
         </select>
 
         <select

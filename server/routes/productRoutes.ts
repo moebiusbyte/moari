@@ -265,6 +265,7 @@ router.get("/products", async (req: Request, res: Response) => {
       FROM moari.products p
       LEFT JOIN moari.product_materials pm ON p.id = pm.product_id
       LEFT JOIN moari.product_images pi ON p.id = pi.product_id
+      LEFT JOIN moari.suppliers s ON p.supplier_id = s.id
     `;
 
     if (search) {
@@ -280,6 +281,18 @@ router.get("/products", async (req: Request, res: Response) => {
     if (quality) {
       queryParams.push(quality);
       conditions.push(`p.quality = $${queryParams.length}`);
+    }
+
+    // Add the status filter
+    if (req.query.fstatus) {
+      queryParams.push(req.query.fstatus);
+      conditions.push(`p.status = $${queryParams.length}`);
+    }
+
+    // Add the supplier filter
+    if (req.query.ffornecedor) {
+      queryParams.push(req.query.ffornecedor);
+      conditions.push(`p.supplier_id = $${queryParams.length}`);
     }
 
     if (conditions.length > 0) {
