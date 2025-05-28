@@ -16,16 +16,6 @@ const HOST = "0.0.0.0";
 const app = express();
 
 console.log("Inicializando servidor...");
-console.log("NODE_ENV:", process.env.NODE_ENV);
-console.log("Database URL exists:", !!process.env.DATABASE_URL);
-
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL não está definida no arquivo .env");
-}
-
-// Conexão com o banco de dados
-const sql = neon(databaseUrl);
 
 // Configuração do CORS
 app.use(
@@ -44,6 +34,18 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization']
   })
 );
+
+
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("Database URL exists:", !!process.env.DATABASE_URL);
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL não está definida no arquivo .env");
+}
+
+// Conexão com o banco de dados
+const sql = neon(databaseUrl);
 
 // Middlewares
 app.use(express.json());
