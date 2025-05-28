@@ -66,10 +66,10 @@ const errorHandler = (
   console.error("Erro detalhado no middleware:", {
     message: err.message,
     status: err.status,
-    stack: err.stack,
+    stack: err.stack, 
     details: err
   });
-  
+
   const status = err.status || 500;
   const message = err.message || "Erro interno do servidor";
   res.status(status).json({
@@ -78,16 +78,7 @@ const errorHandler = (
   });
 };
 
-// Middleware para logging
-app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log('Debug - Request recebida:');
-  console.log('URL:', req.url);
-  console.log('Method:', req.method);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  console.log('IP do cliente:', req.ip);
-  next();
-});
+app.use(errorHandler);
 
 // Rotas
 app.use('/api', productsRoutes);
@@ -212,9 +203,6 @@ app._router.stack.forEach((r: any) => {
     console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
   }
 });
-
-// Adiciona o middleware de tratamento de erros
-app.use(errorHandler);
 
 // Função de inicialização do servidor
 async function startServer() {

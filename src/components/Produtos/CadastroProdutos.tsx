@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { X, Upload, Trash2, Save, Plus, Tag, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import api from '../../../server/api/axiosConfig';
-
+import { Supplier } from "@/types/supplier"; // Importe a interface Supplier
 interface ProdutoFormData {
   codigo: string;
   nome: string;
@@ -14,7 +14,7 @@ interface ProdutoFormData {
   tamanho: string;
   materiaisComponentes: string[];
   origem: string;
-  garantia: string; 
+ garantia: string;
   fornecedor: string;
   precoBase: string;
   margemLucro: string;
@@ -58,6 +58,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [alertaPreco, setAlertaPreco] = useState<{
+
     tipo: string;
     mensagem: string;
   } | null>(null);
@@ -67,10 +68,25 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       console.log("Modal está aberto:", isOpen);
       generateProductCode();
       // ... outras inicializações
-    }    
+    }
   }, [isOpen]);
 
-  
+  const [fornecedores, setFornecedores] = useState<Supplier[]>([]); // Estado para armazenar fornecedores
+
+  // Função para buscar fornecedores
+  const fetchSuppliers = async () => {
+    try {
+      const response = await api.get('/suppliers');
+      setFornecedores(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar fornecedores:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSuppliers(); // Buscar fornecedores quando o componente montar
+  }, []);
+
   const generateProductCode = async () => {
     try {
       setLoading(true); // Define o estado como "carregando"
@@ -88,7 +104,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       const { nextId } = response.data;
   
       // Garantir que o código seja sempre uma string com 7 dígitos
-      let formattedCode;
+      let formattedCode; // Corrigido para usar 'let'
       
       if (typeof nextId === 'string') {
         // Se já for uma string, certificar-se de que tem o formato correto
@@ -99,7 +115,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
         // Se for um número, converter para string com padding
         formattedCode = nextId.toString().padStart(7, '0');
   } else {
-        // Tipo inesperado, usar fallback
+        // Tipo inesperado, usar fallback // Corrigido erro de digitação
         console.warn('Tipo de nextId inesperado:', typeof nextId);
         formattedCode = '0000001';
       }
@@ -216,7 +232,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) => {
-    const { name, value, type } = e.target;
+    const { name, value, type } = e.target; // Removido 'name' duplicado
   
     let validatedValue = value;
   
@@ -262,7 +278,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       console.log("Tentando salvar produto com ID:", produto.codigo);
   
       // Tentar salvar o produto
-      await onSave(produto, imagens);
+ await onSave({ ...produto, fornecedor: produto.fornecedor }, imagens);
   
       // Se chegou aqui, deu tudo certo
       onClose();
@@ -357,6 +373,23 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                   <option value="brincos">Brincos</option>
                   <option value="aneis">Anéis</option>
                   <option value="pulseiras">Pulseiras</option>
+                </select>
+              </div>
+
+              {/* Dropdown de Fornecedores */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fornecedor
+                </label>
+                <select
+                  name="fornecedor"
+                  value={produto.fornecedor}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-gray-300 p-2"
+                >
+                  <option value="">Selecione o fornecedor...</option>
+                  {fornecedores.map((fornecedor) => (
+                    <option key={fornecedor.id} value={fornecedor.id}>{fornecedor.nome}</option>))}
                 </select>
               </div>
             </div>

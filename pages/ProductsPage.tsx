@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Search,
   Plus,
@@ -71,9 +71,9 @@ const ProductsPage = () => {
         fstatus: filtroAvancado.status,
         ffornecedor: filtroAvancado.fornecedor
       });
-  
+
       const response = await api.get(`/products?${params}`);
-      
+
       // Verifica se a resposta tem a estrutura esperada
       if (response.data && response.data.products) {
         setProducts(response.data.products);
@@ -143,12 +143,12 @@ const ProductsPage = () => {
   const handleUpdateProduct = async (updatedProduct: Partial<Product>, newImages: File[] = []) => {
     try {
       const formData = new FormData();
-  
+
       // Garantir que temos o ID do produto
       if (!selectedProduct?.id) {
         throw new Error('ID do produto não encontrado');
       }
-  
+
       // Adicionar campos do produto
       Object.entries(updatedProduct).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -159,25 +159,25 @@ const ProductsPage = () => {
           }
         }
       });
-  
+
       // Adicionar novas imagens
       newImages.forEach((image) => {
         formData.append('images', image);
       });
-  
+
       const response = await api.put(`/products/${selectedProduct.id}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
-  
+
       // Atualizar lista de produtos
       setProducts(prevProducts =>
         prevProducts.map(p =>
           p.id.toString() === selectedProduct.id.toString() ? response.data : p
         )
       );
-  
+
       setEditModalOpen(false);
       setSelectedProduct(null);
     } catch (error) {
@@ -226,7 +226,7 @@ const ProductsPage = () => {
         profit_margin: produto.margemLucro,
         description: produto.descricao,
         materials: produto.materiaisComponentes,
-        supplier_id: produto.fornecedor,
+        supplier_id: produto.fornecedor, // Added supplier_id here
       };
 
       Object.entries(apiData).forEach(([key, value]) => {
@@ -413,8 +413,8 @@ const ProductsPage = () => {
                             ? "bg-blue-100 text-blue-800"
                             : "bg-yellow-100 text-yellow-800"
                         }`}>
-                          {product.status === "active" 
-                            ? "Ativo" 
+                          {product.status === "active"
+                            ? "Ativo"
                             : product.status === "consigned"
                             ? "Consignado"
                             : "Inativo"}

@@ -342,6 +342,8 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
   try {
     await client.query("BEGIN");
 
+    console.log("POST /products req.body:", req.body);
+
     const {
       code,
       name,
@@ -357,20 +359,21 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
       profit_margin,
       description,
       materials,
+      supplier_id,
     } = req.body;
 
     const insertQuery = `
       INSERT INTO moari.products (
         code, name, category, format, quality, material_type,
         usage_mode, size, origin, warranty, base_price,
-        profit_margin, description
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        profit_margin, description, supplier_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `;
 
     const productResult = await client.query(insertQuery, [
       code,
-      name,
+      name,      
       category,
       format,
       quality,
@@ -382,6 +385,7 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
       base_price,
       profit_margin,
       description,
+      supplier_id
     ]);
 
     const product = productResult.rows[0];
@@ -460,6 +464,7 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
   try {
     await client.query("BEGIN");
     
+    console.log("PUT /products/:id req.body:", req.body);
     const { id } = req.params;
     const {
       code,
