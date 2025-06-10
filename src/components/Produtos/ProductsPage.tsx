@@ -299,7 +299,7 @@ const ProductsPage = () => {
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-lg shadow">
             <h3 className="text-sm font-semibold text-gray-600">Total de Produtos</h3>
             <p className="text-2xl font-semibold">{estatisticas.totalProdutos}</p>
@@ -315,14 +315,8 @@ const ProductsPage = () => {
             <p className="text-2xl font-semibold">{estatisticas.produtosAtivos}</p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-semibold text-gray-600">Produtos Inativos</h3>
+            <h3 className="text-sm font-semibold text-gray-600">Produtos Consignados</h3>
             <p className="text-2xl font-semibold">{estatisticas.produtosInativos}</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-sm font-semibold text-gray-600">Alertas</h3>
-            <p className="text-2xl font-semibold text-yellow-600">
-              {estatisticas.produtosAlerta}
-            </p>
           </div>
         </div>
       </div>
