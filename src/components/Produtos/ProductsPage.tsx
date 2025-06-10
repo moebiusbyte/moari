@@ -423,9 +423,9 @@ const ProductsPage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.quality}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">R$ {Number(product.base_price).toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">R$ {Number(product.profit_margin).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">% {Number(product.profit_margin).toFixed(2)}</td>
+                   <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">R$ {(Number(product.base_price) * ((Number(product.profit_margin) / 100) + 1)).toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"></td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
