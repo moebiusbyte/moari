@@ -35,6 +35,198 @@ const upload = multer({
   },
 });
 
+// Função helper para debug de queries - adicione no início do arquivo
+const debugQuery = (queryText: string, params?: any[]) => {
+  console.log('\n🔍 === DEBUG SQL QUERY ===');
+  console.log('📝 Query:', queryText);
+  console.log('📋 Parameters:', params);
+  console.log('⏰ Timestamp:', new Date().toISOString());
+  console.log('========================\n');
+};
+
+// Alternativa: Middleware mais específico para o PUT
+router.put("/products/:id", 
+  // Middleware de debug específico
+  (req, res, next) => {
+    console.log('\n🚀 === PUT /products/:id DEBUG ===');
+    console.log('🆔 Product ID:', req.params.id);
+    console.log('📦 Request Body:', JSON.stringify(req.body, null, 2));
+    console.log('📁 Files:', req.files ? (req.files as any[]).length : 0);
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('=================================\n');
+    next();
+  },
+  upload.array("images", 5), 
+  async (req, res) => {
+    const client = await pool.connect();
+    
+    try {
+      await client.query("BEGIN");
+      
+      console.log("PUT /products/:id req.body:", req.body);
+      const { id } = req.params;
+      const {
+        code,
+        name,
+        category,
+        format,
+        quality,
+        material_type,
+        usage_mode,
+        size,
+        origin,
+        warranty,
+        base_price,
+        profit_margin,
+        description,
+        status,
+        materials,
+        removed_images,
+        buy_date,     // NOVO CAMPO
+        quantity      // NOVO CAMPO
+      } = req.body;
+
+      // Log específico dos valores que serão atualizados - CORRIGIDO
+      console.log('\n📊 === VALORES PARA ATUALIZAÇÃO ===');
+      console.log('Status recebido:', status);
+      console.log('Base price:', base_price);
+      console.log('Profit margin:', profit_margin);
+      console.log('Buy date:', buy_date);        // AGORA ESTÁ NO ESCOPO CORRETO
+      console.log('Quantity:', quantity);        // AGORA ESTÁ NO ESCOPO CORRETO
+      console.log('ID do produto:', id);
+      console.log('===============================\n');
+
+      const updateQuery = `
+        UPDATE moari.products 
+        SET
+          code = $1,
+          name = $2,
+          category = $3,
+          format = $4,
+          quality = $5,
+          material_type = $6,
+          usage_mode = $7,
+          size = $8,
+          origin = $9,
+          warranty = $10,
+          base_price = $11,
+          profit_margin = $12,
+          description = $13,
+          status = $14,
+          buy_date = $15,
+          quantity = $16,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $17
+        RETURNING *
+      `;
+
+      const updateParams = [
+        code,
+        name,
+        category,
+        format,
+        quality,
+        material_type,
+        usage_mode,
+        size,
+        origin,
+        warranty,
+        base_price,
+        profit_margin,
+        description,
+        status,
+        buy_date,
+        quantity,
+        id
+      ];
+
+      console.log('\n💾 === PARÂMETROS DO UPDATE ===');
+      updateParams.forEach((param, index) => {
+        console.log(`$${index + 1}:`, param, `(${typeof param})`);
+      });
+      console.log('===============================\n');
+
+      // Debug da query antes de executar
+      debugQuery(updateQuery, updateParams);
+
+      const productResult = await client.query(updateQuery, updateParams);
+
+      console.log('\n✅ === RESULTADO DO UPDATE ===');
+      console.log('Rows affected:', productResult.rowCount);
+      console.log('Updated product:', productResult.rows[0]);
+      console.log('===============================\n');
+
+      if (productResult.rowCount === 0) {
+        throw new Error('Produto não encontrado');
+      }
+
+      // Resto da lógica permanece igual...
+      if (removed_images && removed_images.length > 0) {
+        await client.query(
+          'DELETE FROM moari.product_images WHERE product_id = $1 AND image_url = ANY($2)',
+          [id, removed_images]
+        );
+      }
+
+      if (materials) {
+        await client.query(
+          'DELETE FROM moari.product_materials WHERE product_id = $1',
+          [id]
+        );
+
+        const materialsList = Array.isArray(materials) ? materials : JSON.parse(materials);
+        for (const material of materialsList) {
+          await client.query(
+            'INSERT INTO moari.product_materials (product_id, material_name) VALUES ($1, $2)',
+            [id, material]
+          );
+        }
+      }
+
+      const files = req.files as Express.Multer.File[];
+      if (files && files.length > 0) {
+        for (let i = 0; i < files.length; i++) {
+          const imageUrl = `https://storage.example.com/${uuidv4()}.jpg`;
+          await client.query(
+            'INSERT INTO moari.product_images (product_id, image_url, order_index) VALUES ($1, $2, $3)',
+            [id, imageUrl, i]
+          );
+        }
+      }
+
+      const updatedProductQuery = `
+        SELECT 
+          p.*,
+          array_agg(DISTINCT pm.material_name) as materials,
+          array_agg(DISTINCT pi.image_url) as images
+        FROM moari.products p
+        LEFT JOIN moari.product_materials pm ON p.id = pm.product_id
+        LEFT JOIN moari.product_images pi ON p.id = pi.product_id
+        WHERE p.id = $1
+        GROUP BY p.id
+      `;
+
+      const updatedProduct = await client.query(updatedProductQuery, [id]);
+
+      await client.query("COMMIT");
+      
+      console.log('\n🎉 === PRODUTO FINAL ATUALIZADO ===');
+      console.log('Final product:', JSON.stringify(updatedProduct.rows[0], null, 2));
+      console.log('===================================\n');
+      
+      res.json(updatedProduct.rows[0]);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error('\n❌ === ERRO NO UPDATE ===');
+      console.error('Error details:', error);
+      console.error('=====================\n');
+      handleDatabaseError(error, res);
+    } finally {
+      client.release();
+    }
+  }
+);
+
 const deleteProduct = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
@@ -221,15 +413,13 @@ router.get("/products", async (req: Request, res: Response) => {
       page = 1, 
       limit = 10, 
       search, 
-      category, 
-      quality,
       orderBy = "created_at",
       orderDirection = "desc"
     } = req.query;
     
     const offset = (Number(page) - 1) * Number(limit);
 
-    // Consulta para obter estatísticas
+    // Consulta para obter estatísticas - ATUALIZADA
     const statsQuery = `
       SELECT 
         COUNT(*) as total_produtos,
@@ -237,8 +427,10 @@ router.get("/products", async (req: Request, res: Response) => {
         COUNT(CASE WHEN status != 'active' OR status IS NULL THEN 1 END) as produtos_inativos,
         COUNT(CASE WHEN has_quality_issues = true THEN 1 END) as produtos_problemas_qualidade,
         COUNT(CASE WHEN status = 'consigned' THEN 1 END) as produtos_consignados,
-        COALESCE(SUM(base_price), 0) as valor_total_estoque,
-        COUNT(CASE WHEN (CURRENT_DATE - created_at::date) > 180 THEN 1 END) as produtos_alerta
+        COALESCE(SUM(base_price * COALESCE(quantity, 1)), 0) as valor_total_estoque,
+        COALESCE(SUM(COALESCE(quantity, 1)), 0) as quantidade_total_estoque,
+        COUNT(CASE WHEN (CURRENT_DATE - COALESCE(buy_date, created_at::date)) > 180 THEN 1 END) as produtos_alerta,
+        ROUND(AVG(CURRENT_DATE - COALESCE(buy_date, created_at::date)), 0) as tempo_medio_estoque
       FROM moari.products
     `;
 
@@ -247,6 +439,8 @@ router.get("/products", async (req: Request, res: Response) => {
     const statistics = {
       totalProdutos: parseInt(statsResult.rows[0].total_produtos) || 0,
       valorTotalEstoque: parseFloat(statsResult.rows[0].valor_total_estoque) || 0,
+      quantidadeTotalEstoque: parseInt(statsResult.rows[0].quantidade_total_estoque) || 0,
+      tempoMedioEstoque: parseInt(statsResult.rows[0].tempo_medio_estoque) || 0,
       produtosAtivos: parseInt(statsResult.rows[0].produtos_ativos) || 0,
       produtosInativos: parseInt(statsResult.rows[0].produtos_inativos) || 0,
       produtosAlerta: parseInt(statsResult.rows[0].produtos_alerta) || 0,
@@ -254,12 +448,22 @@ router.get("/products", async (req: Request, res: Response) => {
       produtosConsignados: parseInt(statsResult.rows[0].produtos_consignados) || 0
     };
 
-    // Query para produtos
+    // Query para produtos - ATUALIZADA com novos campos
     let queryParams: any[] = [];
     let conditions: string[] = [];
     let queryText = `
       SELECT 
         p.*,
+        p.quantity,
+        p.buy_date,
+        CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) as dias_em_estoque,
+        CASE 
+          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 365 THEN 'Mais de 1 ano'
+          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 180 THEN '6 meses - 1 ano'
+          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 90 THEN '3-6 meses'
+          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 30 THEN '1-3 meses'
+          ELSE 'Menos de 1 mês'
+        END as tempo_estoque_categoria,
         COALESCE(array_agg(DISTINCT pm.material_name) FILTER (WHERE pm.material_name IS NOT NULL), ARRAY[]::text[]) as materials,
         COALESCE(array_agg(DISTINCT pi.image_url) FILTER (WHERE pi.image_url IS NOT NULL), ARRAY[]::text[]) as images
       FROM moari.products p
@@ -268,45 +472,124 @@ router.get("/products", async (req: Request, res: Response) => {
       LEFT JOIN moari.suppliers s ON p.supplier_id = s.id
     `;
 
+    // ✅ FILTROS CORRIGIDOS - usando req.query diretamente para evitar conflitos
+    
+    // Filtro de busca por nome ou código
     if (search) {
       queryParams.push(`%${search}%`);
       conditions.push(`(p.name ILIKE $${queryParams.length} OR p.code ILIKE $${queryParams.length})`);
+      
+      console.log('\n🔍 === FILTRO BUSCA DEBUG ===');
+      console.log('Termo de busca:', search);
+      console.log('Condição aplicada:', `(p.name ILIKE $${queryParams.length} OR p.code ILIKE $${queryParams.length})`);
+      console.log('===============================\n');
     }
 
-    if (category) {
-      queryParams.push(category);
+    // ✅ Filtro por categoria - CORRIGIDO
+    if (req.query.category) {
+      queryParams.push(req.query.category);
       conditions.push(`p.category = $${queryParams.length}`);
+      
+      console.log('\n🎯 === FILTRO CATEGORIA DEBUG ===');
+      console.log('Categoria solicitada:', req.query.category);
+      console.log('Parâmetro SQL:', `$${queryParams.length}`);
+      console.log('Condição aplicada:', `p.category = $${queryParams.length}`);
+      console.log('Total de condições:', conditions.length);
+      console.log('==================================\n');
     }
 
-    if (quality) {
-      queryParams.push(quality);
-      conditions.push(`p.quality = $${queryParams.length}`);
-    }
-
-    // Add the status filter
+    // Filtro por status
     if (req.query.fstatus) {
       queryParams.push(req.query.fstatus);
       conditions.push(`p.status = $${queryParams.length}`);
+      
+      console.log('\n🔍 === FILTRO STATUS DEBUG ===');
+      console.log('Status solicitado:', req.query.fstatus);
+      console.log('Parâmetro SQL:', `$${queryParams.length}`);
+      console.log('Condição aplicada:', `p.status = $${queryParams.length}`);
+      console.log('Total de condições:', conditions.length);
+      console.log('================================\n');
     }
 
-    // Add the supplier filter
+    // Filtro por fornecedor
     if (req.query.ffornecedor) {
       queryParams.push(req.query.ffornecedor);
       conditions.push(`p.supplier_id = $${queryParams.length}`);
+      
+      console.log('\n🎯 === FILTRO FORNECEDOR DEBUG ===');
+      console.log('Fornecedor ID solicitado:', req.query.ffornecedor);
+      console.log('Parâmetro SQL:', `$${queryParams.length}`);
+      console.log('Condição aplicada:', `p.supplier_id = $${queryParams.length}`);
+      console.log('Total de condições:', conditions.length);
+      console.log('===================================\n');
     }
 
+    // Filtro tempo em estoque
+    if (req.query.tempoestoque) {
+      const tempoEstoque = req.query.tempoestoque as string;
+      
+      console.log(`\n🎯 === FILTRO TEMPO ESTOQUE DEBUG ===`);
+      console.log('Tempo em estoque solicitado:', tempoEstoque);
+      
+      switch (tempoEstoque) {
+        case "0-1":
+          conditions.push(`
+            (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) >= 0 
+            AND (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) <= 30
+          `);
+          console.log('✅ Filtro 0-1 mês aplicado');
+          break;
+          
+        case "1-3":
+          conditions.push(`
+            (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) > 30 
+            AND (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) <= 90
+          `);
+          console.log('✅ Filtro 1-3 meses aplicado');
+          break;
+          
+        case "3-6":
+          conditions.push(`
+            (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) > 90 
+            AND (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) <= 180
+          `);
+          console.log('✅ Filtro 3-6 meses aplicado');
+          break;
+          
+        case "6+":
+          conditions.push(`
+            (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) > 180
+          `);
+          console.log('✅ Filtro 6+ meses aplicado');
+          break;
+          
+        default:
+          console.log('⚠️ Valor de tempo em estoque não reconhecido:', tempoEstoque);
+      }
+      
+      console.log('📊 Total de condições após tempo estoque:', conditions.length);
+      console.log('=====================================\n');
+    }
+        
+    // Aplicar condições WHERE
     if (conditions.length > 0) {
       queryText += ` WHERE ${conditions.join(" AND ")}`;
+      console.log('\n📋 === QUERY FINAL DEBUG ===');
+      console.log('Condições WHERE:', conditions);
+      console.log('Parâmetros:', queryParams);
+      console.log('=============================\n');
     }
-
     queryText += ` GROUP BY p.id`;
     
-    // Adiciona ordenação
+    // Adiciona ordenação - ATUALIZADA com novas opções
     let orderColumn = "p.created_at";
     if (orderBy === "name") orderColumn = "p.name";
     if (orderBy === "code") orderColumn = "p.code";
     if (orderBy === "category") orderColumn = "p.category";
     if (orderBy === "price") orderColumn = "p.base_price";
+    if (orderBy === "quantity") orderColumn = "p.quantity";
+    if (orderBy === "buy_date") orderColumn = "p.buy_date";
+    if (orderBy === "stock_time") orderColumn = "CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)";
     
     let direction = "DESC";
     if (orderDirection === "asc") direction = "ASC";
@@ -318,7 +601,7 @@ router.get("/products", async (req: Request, res: Response) => {
     queryText += ` LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
 
     console.log("Executando consulta de produtos com parâmetros:", queryParams);
-    console.log("Query SQL:", queryText);
+    console.log("Query SQL final:", queryText);
     
     const productsResult = await client.query(queryText, queryParams);
     console.log(`Consulta retornou ${productsResult.rows.length} produtos`);
@@ -337,89 +620,204 @@ router.get("/products", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/products", upload.array("images", 5), async (req, res) => {
+router.get("/debug-stock-time", async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-
-    console.log("POST /products req.body:", req.body);
-
-    const {
-      code,
-      name,
-      category,
-      format,
-      quality,
-      material_type,
-      usage_mode,
-      size,
-      origin,
-      warranty,
-      base_price,
-      profit_margin,
-      description,
-      materials,
-      supplier_id,
-    } = req.body;
-
-    const insertQuery = `
-      INSERT INTO moari.products (
-        code, name, category, format, quality, material_type,
-        usage_mode, size, origin, warranty, base_price,
-        profit_margin, description, supplier_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      RETURNING *
+    // Query para analisar os dados de tempo em estoque
+    const debugQuery = `
+      SELECT 
+        p.id,
+        p.code,
+        p.name,
+        p.buy_date,
+        p.created_at,
+        CURRENT_DATE as today,
+        COALESCE(p.buy_date, p.created_at::date) as reference_date,
+        (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) as days_in_stock,
+        CASE 
+          WHEN (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) >= 0 
+               AND (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) <= 30 THEN '0-1 mês'
+          WHEN (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) > 30 
+               AND (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) <= 90 THEN '1-3 meses'
+          WHEN (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) > 90 
+               AND (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) <= 180 THEN '3-6 meses'
+          WHEN (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) > 180 THEN '6+ meses'
+          ELSE 'ERRO/NULL'
+        END as category
+      FROM moari.products p
+      ORDER BY days_in_stock
+      LIMIT 20;
     `;
 
-    const productResult = await client.query(insertQuery, [
-      code,
-      name,      
-      category,
-      format,
-      quality,
-      material_type,
-      usage_mode,
-      size,
-      origin,
-      warranty,
-      base_price,
-      profit_margin,
-      description,
-      supplier_id
-    ]);
+    const result = await client.query(debugQuery);
+    
+    // Análise dos resultados
+    const analysis = {
+      total_products: result.rows.length,
+      categories: {} as { [key: string]: number },
+      sample_data: result.rows,
+      date_issues: result.rows.filter(row => 
+        row.days_in_stock === null || 
+        row.days_in_stock < 0 || 
+        row.reference_date === null
+      ),
+      zero_to_thirty: result.rows.filter(row => 
+        row.days_in_stock >= 0 && row.days_in_stock <= 30
+      ).length
+    };
 
-    const product = productResult.rows[0];
+    // Contar por categoria
+    result.rows.forEach(row => {
+      const cat = row.category as string;
+      analysis.categories[cat] = (analysis.categories[cat] || 0) + 1;
+    });
 
-    if (materials) {
-      const materialsList = Array.isArray(materials) ? materials : JSON.parse(materials);
-      for (const material of materialsList) {
-        await client.query(
-          "INSERT INTO moari.product_materials (product_id, material_name) VALUES ($1, $2)",
-          [product.id, material]
-        );
-      }
-    }
+    console.log('\n🔍 === DEBUG TEMPO EM ESTOQUE ===');
+    console.log('Análise:', JSON.stringify(analysis, null, 2));
+    console.log('================================\n');
 
-    const files = req.files as Express.Multer.File[];
-    if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const imageUrl = `https://storage.example.com/${uuidv4()}.jpg`;
-        await client.query(
-          "INSERT INTO moari.product_images (product_id, image_url, order_index) VALUES ($1, $2, $3)",
-          [product.id, imageUrl, i]
-        );
-      }
-    }
-
-    await client.query("COMMIT");
-    res.status(201).json(product);
+    res.json(analysis);
   } catch (error) {
-    await client.query("ROLLBACK");
-    handleDatabaseError(error, res);
+    console.error('Erro no debug:', error);
+    res.status(500).json({ error: 'Erro no debug' });
   } finally {
     client.release();
   }
 });
+
+router.post("/products", 
+  // Middleware de debug para POST
+  (req, res, next) => {
+    console.log('\n🚀 === POST /products DEBUG ===');
+    console.log('📦 Request Body:', JSON.stringify(req.body, null, 2));
+    console.log('📁 Files:', req.files ? (req.files as any[]).length : 0);
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('===============================\n');
+    next();
+  },
+  upload.array("images", 5), 
+  async (req, res) => {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      console.log("POST /products req.body:", req.body);
+
+      const {
+        code,
+        name,
+        category,
+        format,
+        quality,
+        material_type,
+        usage_mode,
+        size,
+        origin,
+        warranty,
+        base_price,
+        profit_margin,
+        description,
+        materials,
+        supplier_id,
+        buy_date,     // NOVO CAMPO
+        quantity      // NOVO CAMPO
+      } = req.body;
+
+      // Log específico dos valores que serão inseridos
+      console.log('\n📊 === VALORES PARA INSERÇÃO ===');
+      console.log('Code:', code);
+      console.log('Name:', name);
+      console.log('Category:', category);
+      console.log('Base price:', base_price);
+      console.log('Supplier ID:', supplier_id);
+      console.log('Buy date:', buy_date);
+      console.log('Quantity:', quantity);
+      console.log('===============================\n');
+
+      const insertQuery = `
+        INSERT INTO moari.products (
+          code, name, category, format, quality, material_type,
+          usage_mode, size, origin, warranty, base_price,
+          profit_margin, description, supplier_id, buy_date, quantity
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        RETURNING *
+      `;
+
+      const insertParams = [
+        code,
+        name,      
+        category,
+        format,
+        quality,
+        material_type,
+        usage_mode,
+        size,
+        origin,
+        warranty,
+        base_price,
+        profit_margin,
+        description,
+        supplier_id,
+        buy_date,    // Se vazio, insere NULL
+        quantity        // Se vazio, insere 1
+      ];
+
+      console.log('\n💾 === PARÂMETROS DO INSERT ===');
+      insertParams.forEach((param, index) => {
+        console.log(`$${index + 1}:`, param, `(${typeof param})`);
+      });
+      console.log('===============================\n');
+
+      // Debug da query antes de executar
+      debugQuery(insertQuery, insertParams);
+
+      const productResult = await client.query(insertQuery, insertParams);
+
+      console.log('\n✅ === RESULTADO DO INSERT ===');
+      console.log('Produto criado:', productResult.rows[0]);
+      console.log('==============================\n');
+
+      const product = productResult.rows[0];
+
+      if (materials) {
+        const materialsList = Array.isArray(materials) ? materials : JSON.parse(materials);
+        for (const material of materialsList) {
+          await client.query(
+            "INSERT INTO moari.product_materials (product_id, material_name) VALUES ($1, $2)",
+            [product.id, material]
+          );
+        }
+      }
+
+      const files = req.files as Express.Multer.File[];
+      if (files && files.length > 0) {
+        for (let i = 0; i < files.length; i++) {
+          const imageUrl = `https://storage.example.com/${uuidv4()}.jpg`;
+          await client.query(
+            "INSERT INTO moari.product_images (product_id, image_url, order_index) VALUES ($1, $2, $3)",
+            [product.id, imageUrl, i]
+          );
+        }
+      }
+
+      await client.query("COMMIT");
+      
+      console.log('\n🎉 === PRODUTO FINAL CRIADO ===');
+      console.log('Final product:', JSON.stringify(product, null, 2));
+      console.log('===============================\n');
+      
+      res.status(201).json(product);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error('\n❌ === ERRO NO INSERT ===');
+      console.error('Error details:', error);
+      console.error('=======================\n');
+      handleDatabaseError(error, res);
+    } finally {
+      client.release();
+    }
+  }
+);
 
 router.delete('/products/:id', (async (req, res) => {
   const client = await pool.connect();
@@ -457,130 +855,5 @@ router.delete('/products/:id', (async (req, res) => {
     client.release();
   }
 }) as RequestHandler);
-
-router.put("/products/:id", upload.array("images", 5), async (req, res) => {
-  const client = await pool.connect();
-  
-  try {
-    await client.query("BEGIN");
-    
-    console.log("PUT /products/:id req.body:", req.body);
-    const { id } = req.params;
-    const {
-      code,
-      name,
-      category,
-      format,
-      quality,
-      material_type,
-      usage_mode,
-      size,
-      origin,
-      warranty,
-      base_price,
-      profit_margin,
-      description,
-      materials,
-      removed_images
-    } = req.body;
-
-    const updateQuery = `
-      UPDATE moari.products 
-      SET 
-        code = $1,
-        name = $2,
-        category = $3,
-        format = $4,
-        quality = $5,
-        material_type = $6,
-        usage_mode = $7,
-        size = $8,
-        origin = $9,
-        warranty = $10,
-        base_price = $11,
-        profit_margin = $12,
-        description = $13,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $14
-      RETURNING *
-    `;
-
-    const productResult = await client.query(updateQuery, [
-      code,
-      name,
-      category,
-      format,
-      quality,
-      material_type,
-      usage_mode,
-      size,
-      origin,
-      warranty,
-      base_price,
-      profit_margin,
-      description,
-      id
-    ]);
-
-    if (productResult.rowCount === 0) {
-      throw new Error('Produto não encontrado');
-    }
-
-    if (removed_images && removed_images.length > 0) {
-      await client.query(
-        'DELETE FROM moari.product_images WHERE product_id = $1 AND image_url = ANY($2)',
-        [id, removed_images]
-      );
-    }
-
-    if (materials) {
-      await client.query(
-        'DELETE FROM moari.product_materials WHERE product_id = $1',
-        [id]
-      );
-
-      const materialsList = Array.isArray(materials) ? materials : JSON.parse(materials);
-      for (const material of materialsList) {
-        await client.query(
-          'INSERT INTO moari.product_materials (product_id, material_name) VALUES ($1, $2)',
-          [id, material]
-        );
-      }
-    }
-
-    const files = req.files as Express.Multer.File[];
-    if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const imageUrl = `https://storage.example.com/${uuidv4()}.jpg`;
-        await client.query(
-          'INSERT INTO moari.product_images (product_id, image_url, order_index) VALUES ($1, $2, $3)',
-          [id, imageUrl, i]
-        );
-      }
-    }
-
-    const updatedProductQuery = `
-      SELECT 
-        p.*,
-        array_agg(DISTINCT pm.material_name) as materials,
-        array_agg(DISTINCT pi.image_url) as images
-      FROM moari.products p
-      LEFT JOIN moari.product_materials pm ON p.id = pm.product_id
-      LEFT JOIN moari.product_images pi ON p.id = pi.product_id
-      WHERE p.id = $1
-      GROUP BY p.id
-    `;
-
-    const updatedProduct = await client.query(updatedProductQuery, [id]);
-
-    await client.query("COMMIT");
-    res.json(updatedProduct.rows[0]);
-  } catch (error) {
-    await client.query("ROLLBACK");
-    handleDatabaseError(error, res);
-  } finally {
-    client.release();
-  }
-});
 
 export default router;

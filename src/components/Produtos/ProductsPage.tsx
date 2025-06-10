@@ -56,8 +56,8 @@ const ProductsPage = () => {
     produtosConsignados: 0
   });
 
-   // Função para buscar produtos
-   const fetchProducts = async () => {
+    // Função para buscar produtos
+    const fetchProducts = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -67,11 +67,23 @@ const ProductsPage = () => {
         orderBy: ordenacao.campo,
         orderDirection: ordenacao.ordem,
         category: filtroAvancado.categoria,
-        tempoestoque: filtroAvancado.tempoEstoque,
+        tempoestoque: filtroAvancado.tempoEstoque,  // ✅ Este nome está correto
         fstatus: filtroAvancado.status,
         ffornecedor: filtroAvancado.fornecedor
       });
-  
+
+      console.log('📤 Parâmetros enviados para a API:', {
+        page: page.toString(),
+        limit: "10", 
+        search: searchTerm,
+        orderBy: ordenacao.campo,
+        orderDirection: ordenacao.ordem,
+        category: filtroAvancado.categoria,
+        tempoestoque: filtroAvancado.tempoEstoque,  // Debug do filtro
+        fstatus: filtroAvancado.status,
+        ffornecedor: filtroAvancado.fornecedor
+      });
+    
       const response = await api.get(`/products?${params}`);
       
       // Verifica se a resposta tem a estrutura esperada
@@ -208,53 +220,69 @@ const ProductsPage = () => {
   };
 
   // Handler para salvar novo produto
-  const handleSaveProduto = async (produto: any, imagens: File[]) => {
-    try {
-      const formData = new FormData();
+ const handleSaveProduto = async (produto: any, imagens: File[]) => {
+  try {
+    console.log('📦 Dados recebidos do formulário:', produto);
+    
+    const formData = new FormData();
 
-      const apiData = {
-        code: produto.codigo,
-        name: produto.nome,
-        category: produto.categoria,
-        format: produto.formato,
-        material_type: produto.tipoMaterial,
-        usage_mode: produto.modoUso,
-        size: produto.tamanho,
-        origin: produto.origem,
-        warranty: produto.garantia,
-        base_price: produto.precoBase,
-        profit_margin: produto.margemLucro,
-        description: produto.descricao,
-        materials: produto.materiaisComponentes,
-        supplier_id: produto.fornecedor,
-      };
+    const apiData = {
+      code: produto.codigo,
+      name: produto.nome,
+      category: produto.categoria,
+      format: produto.formato,
+      material_type: produto.tipoMaterial,
+      usage_mode: produto.modoUso,
+      size: produto.tamanho,
+      origin: produto.origem,
+      warranty: produto.garantia,
+      base_price: produto.precoBase,
+      profit_margin: produto.margemLucro,
+      description: produto.descricao,
+      materials: produto.materiaisComponentes,
+      supplier_id: produto.fornecedor,
+      
+      // CAMPOS NOVOS ADICIONADOS:
+      buy_date: produto.dataCompra || null,           // dataCompra -> buy_date
+      quantity: parseInt(produto.quantidade) || 1     // quantidade -> quantity (convertido para int)
+    };
 
-      Object.entries(apiData).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          if (key === 'materials') {
-            formData.append(key, JSON.stringify(value));
-          } else {
-            formData.append(key, value.toString());
-          }
+    console.log('🔄 Dados mapeados para o backend:', apiData);
+
+    Object.entries(apiData).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (key === 'materials') {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, value.toString());
         }
-      });
+      }
+    });
 
-      imagens.forEach((imagem) => {
-        formData.append('images', imagem);
-      });
+    imagens.forEach((imagem) => {
+      formData.append('images', imagem);
+    });
 
-      await api.post("/products", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      await fetchProducts();
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error("Erro ao salvar produto:", error);
+    console.log('📤 FormData sendo enviado:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
     }
-  };
+
+    const response = await api.post("/products", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    console.log('✅ Produto salvo com sucesso:', response.data);
+
+    await fetchProducts();
+    setIsModalOpen(false);
+  } catch (error) {
+    console.error("❌ Erro ao salvar produto:", error);
+    throw error; // Re-throw para que o modal possa mostrar o erro
+  }
+};
 
   return (
     <div className="p-6">
@@ -337,6 +365,7 @@ const ProductsPage = () => {
           }
           className="border rounded-lg px-6 py-2">
           <option value="">Tempo em Estoque</option>
+          <option value="0-1">Menos de 1 mês</option>
           <option value="1-3">1-3 meses</option>
           <option value="3-6">3-6 meses</option>
           <option value="6+">Mais de 6 meses</option>

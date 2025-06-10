@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { X, Upload, Trash2, Save, Plus, Tag, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import api from '../../../server/api/axiosConfig';
-import { Supplier } from "@/types/supplier"; // Importe a interface Supplier
+import { Supplier } from "@/types/supplier";
+
 interface ProdutoFormData {
   codigo: string;
   nome: string;
@@ -14,11 +15,13 @@ interface ProdutoFormData {
   tamanho: string;
   materiaisComponentes: string[];
   origem: string;
- garantia: string;
+  garantia: string;
   fornecedor: string;
   precoBase: string;
   margemLucro: string;
   descricao: string;
+  dataCompra: string;    // CORRIGIDO: renomeado de dataCompra para buy_date
+  quantidade: string;    // CORRIGIDO: renomeado de quantidade para quantity
 }
 
 interface CadastroProdutosProps {
@@ -38,13 +41,14 @@ const produtoInicial: ProdutoFormData = {
   tamanho: "",
   materiaisComponentes: [] as string[],
   origem: "",
-  garantia: "false", // Adicionado o campo garantia
+  garantia: "false",
   fornecedor: "",
   precoBase: "",
   margemLucro: "",
   descricao: "",
+  dataCompra: "",        // CORRIGIDO
+  quantidade: "1",       // CORRIGIDO: valor padrão 1
 };
-
 
 const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   isOpen,
@@ -58,20 +62,17 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [alertaPreco, setAlertaPreco] = useState<{
-
     tipo: string;
     mensagem: string;
   } | null>(null);
+  const [fornecedores, setFornecedores] = useState<Supplier[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       console.log("Modal está aberto:", isOpen);
       generateProductCode();
-      // ... outras inicializações
     }
   }, [isOpen]);
-
-  const [fornecedores, setFornecedores] = useState<Supplier[]>([]); // Estado para armazenar fornecedores
 
   // Função para buscar fornecedores
   const fetchSuppliers = async () => {
@@ -84,45 +85,37 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   };
 
   useEffect(() => {
-    fetchSuppliers(); // Buscar fornecedores quando o componente montar
+    fetchSuppliers();
   }, []);
 
   const generateProductCode = async () => {
     try {
-      setLoading(true); // Define o estado como "carregando"
+      setLoading(true);
       setAlertaPreco(null);
   
-      // Chamada à API para obter o próximo código de produto
       const response = await api.get('/next-product-id');
       console.log('Resposta da API de código de produto:', response.data);
   
-      // Verificar se a resposta contém o campo esperado
       if (!response.data || response.data.nextId === undefined) {
         throw new Error('Resposta da API inválida - campo nextId ausente');
       }
   
       const { nextId } = response.data;
-  
-      // Garantir que o código seja sempre uma string com 7 dígitos
-      let formattedCode; // Corrigido para usar 'let'
+      let formattedCode;
       
       if (typeof nextId === 'string') {
-        // Se já for uma string, certificar-se de que tem o formato correto
         formattedCode = nextId.match(/^\d+$/) 
           ? nextId.padStart(7, '0')
-          : '0000001'; // Fallback se não for numérico
+          : '0000001';
       } else if (typeof nextId === 'number') {
-        // Se for um número, converter para string com padding
         formattedCode = nextId.toString().padStart(7, '0');
-  } else {
-        // Tipo inesperado, usar fallback // Corrigido erro de digitação
+      } else {
         console.warn('Tipo de nextId inesperado:', typeof nextId);
         formattedCode = '0000001';
       }
       
       console.log('Código formatado para uso:', formattedCode);
       
-      // Atualizar o estado do produto
       setProduto(prev => ({
         ...prev,
         codigo: formattedCode,
@@ -130,7 +123,6 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     } catch (error) {
       console.error('Erro ao gerar código do produto:', error);
   
-      // Define um código padrão em caso de erro
       setProduto((prev) => ({
         ...prev,
         codigo: '0000001',
@@ -141,9 +133,10 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
         mensagem: 'Erro ao gerar código do produto. Usando código padrão.',
       });
     } finally {
-      setLoading(false); // Finaliza o estado de "carregando"
+      setLoading(false);
     }
   };
+
   const validateNumberInput = (value: string, maxValue: number) => {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return "";
@@ -232,7 +225,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) => {
-    const { name, value, type } = e.target; // Removido 'name' duplicado
+    const { name, value, type } = e.target;
   
     let validatedValue = value;
   
@@ -245,9 +238,26 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     if (["precoBase", "margemLucro"].includes(name)) {
       const numValue = parseFloat(value);
       if (isNaN(numValue) || numValue < 0) {
-        validatedValue = "0"; // Define como 0 se o valor for inválido
+        validatedValue = "0";
       } else {
         validatedValue = numValue.toString();
+      }
+    }
+
+    // NOVA VALIDAÇÃO: para quantidade
+    if (name === "quantidade") {
+      const intValue = parseInt(value);
+      if (isNaN(intValue) || intValue < 0) {
+        validatedValue = "1";
+      } else if (intValue > 9999) {
+        validatedValue = "9999";
+        setAlertaPreco({
+          tipo: "warning",
+          mensagem: "A quantidade não pode exceder 9.999 unidades"
+        });
+      } else {
+        validatedValue = value;
+        setAlertaPreco(null);
       }
     }
   
@@ -274,22 +284,17 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       setLoading(true);
       setError(null);
   
-      // Log para debug
       console.log("Tentando salvar produto com ID:", produto.codigo);
   
-      // Tentar salvar o produto
- await onSave({ ...produto, fornecedor: produto.fornecedor }, imagens);
+      await onSave({ ...produto, fornecedor: produto.fornecedor }, imagens);
   
-      // Se chegou aqui, deu tudo certo
       onClose();
     } catch (err: any) {
-      // Log detalhado do erro
       console.error("Erro ao salvar produto:", {
         codigo: produto.codigo,
         error: err,
       });
   
-      // Tratamento mais específico do erro
       let errorMessage = "Erro ao salvar produto. Por favor, tente novamente.";
   
       if (err?.message) {
@@ -298,7 +303,6 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
   
       setError(errorMessage);
   
-      // Exibir alerta de erro
       setAlertaPreco({
         tipo: "error",
         mensagem: errorMessage,
@@ -308,7 +312,8 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     }
   };
 
-  //if (!isOpen) return null;
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-y-auto">
       <div className="bg-white rounded-lg w-full max-w-4xl m-4">
@@ -335,7 +340,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                 <input
                   type="text"
                   name="codigo"
-                  value={loading ? "Carregando..." : produto.codigo} // Mostra "Carregando..." enquanto `loading` for true
+                  value={loading ? "Carregando..." : produto.codigo}
                   onChange={handleChange}
                   className="w-full rounded-lg border border-gray-300 bg-gray-200 p-2"
                   required
@@ -389,9 +394,68 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                 >
                   <option value="">Selecione o fornecedor...</option>
                   {fornecedores.map((fornecedor) => (
-                    <option key={fornecedor.id} value={fornecedor.id}>{fornecedor.nome}</option>))}
+                    <option key={fornecedor.id} value={fornecedor.id}>
+                      {fornecedor.nome}
+                    </option>
+                  ))}
                 </select>
               </div>
+
+              {/* NOVOS CAMPOS: Quantidade e Data de Compra */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantidade em Estoque
+                </label>
+                <input
+                  type="number"
+                  name="quantidade"
+                  value={produto.quantidade}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-gray-300 p-2"
+                  min="0"
+                  max="9999"
+                  step="1"
+                />
+                <span className="text-xs text-gray-500">Máximo: 9.999 unidades</span>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Data de Compra
+                </label>
+                <input
+                  type="date"
+                  name="dataCompra"
+                  value={produto.dataCompra}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-gray-300 p-2"
+                />
+                <span className="text-xs text-gray-500">Data de entrada no estoque</span>
+              </div>
+
+              {/* Mostrar tempo em estoque se dataCompra estiver preenchido */}
+              {produto.dataCompra && (
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="text-sm text-blue-800">
+                    <strong>Tempo em Estoque:</strong> {
+                      (() => {
+                        const buyDate = new Date(produto.dataCompra);
+                        const today = new Date();
+                        const diffTime = Math.abs(today.getTime() - buyDate.getTime());
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays > 365) {
+                          return `${Math.floor(diffDays / 365)} ano(s) e ${diffDays % 365} dias`;
+                        } else if (diffDays > 30) {
+                          return `${Math.floor(diffDays / 30)} mês(es) e ${diffDays % 30} dias`;
+                        } else {
+                          return `${diffDays} dias`;
+                        }
+                      })()
+                    }
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Características */}
@@ -447,11 +511,11 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                   <input
                     type="checkbox"
                     name="garantia"
-                    checked={produto.garantia === "true"} // Verifica se a garantia está marcada
+                    checked={produto.garantia === "true"}
                     onChange={(e) =>
                       setProduto((prev) => ({
                         ...prev,
-                        garantia: e.target.checked ? "true" : "false", // Atualiza o estado
+                        garantia: e.target.checked ? "true" : "false",
                       }))
                     }
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
@@ -611,8 +675,8 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
             onClick={handleSave}
             className={`px-4 py-2 rounded-lg flex items-center ${
               loading
-                ? "bg-blue-400 text-white cursor-not-allowed" // Azul claro quando carregando
-                : "bg-blue-600 text-white hover:bg-blue-700" // Azul padrão
+                ? "bg-blue-400 text-white cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700"
             }`}
             disabled={loading}
           >
