@@ -417,6 +417,17 @@ router.get("/products", async (req: Request, res: Response) => {
   try {
     console.log("Consulta de produtos recebida com parâmetros:", req.query);
     
+    // 🔍 DEBUG DETALHADO DOS PARÂMETROS RECEBIDOS
+    console.log('\n🎯 === DEBUG PARÂMETROS RECEBIDOS ===');
+    console.log('req.query.fstatus:', req.query.fstatus);
+    console.log('Tipo de fstatus:', typeof req.query.fstatus);
+    console.log('fstatus é string vazia?:', req.query.fstatus === '');
+    console.log('fstatus é undefined?:', req.query.fstatus === undefined);
+    console.log('fstatus é null?:', req.query.fstatus === null);
+    console.log('fstatus truthy?:', !!req.query.fstatus);
+    console.log('Todos os parâmetros de query:', JSON.stringify(req.query, null, 2));
+    console.log('======================================\n');
+    
     const { 
       page = 1, 
       limit = 10, 
@@ -427,61 +438,10 @@ router.get("/products", async (req: Request, res: Response) => {
     
     const offset = (Number(page) - 1) * Number(limit);
 
-    // Consulta para obter estatísticas - ATUALIZADA
-    const statsQuery = `
-      SELECT 
-        COUNT(*) as total_produtos,
-        COUNT(CASE WHEN status = 'active' THEN 1 END) as produtos_ativos,
-        COUNT(CASE WHEN status != 'active' OR status IS NULL THEN 1 END) as produtos_inativos,
-        COUNT(CASE WHEN has_quality_issues = true THEN 1 END) as produtos_problemas_qualidade,
-        COUNT(CASE WHEN status = 'consigned' THEN 1 END) as produtos_consignados,
-        COALESCE(SUM(base_price * COALESCE(quantity, 1)), 0) as valor_total_estoque,
-        COALESCE(SUM(COALESCE(quantity, 1)), 0) as quantidade_total_estoque,
-        COUNT(CASE WHEN (CURRENT_DATE - COALESCE(buy_date, created_at::date)) > 180 THEN 1 END) as produtos_alerta,
-        ROUND(AVG(CURRENT_DATE - COALESCE(buy_date, created_at::date)), 0) as tempo_medio_estoque
-      FROM moari.products
-    `;
-
-    console.log("Executando consulta de estatísticas");
-    const statsResult = await client.query(statsQuery);
-    const statistics = {
-      totalProdutos: parseInt(statsResult.rows[0].total_produtos) || 0,
-      valorTotalEstoque: parseFloat(statsResult.rows[0].valor_total_estoque) || 0,
-      quantidadeTotalEstoque: parseInt(statsResult.rows[0].quantidade_total_estoque) || 0,
-      tempoMedioEstoque: parseInt(statsResult.rows[0].tempo_medio_estoque) || 0,
-      produtosAtivos: parseInt(statsResult.rows[0].produtos_ativos) || 0,
-      produtosInativos: parseInt(statsResult.rows[0].produtos_inativos) || 0,
-      produtosAlerta: parseInt(statsResult.rows[0].produtos_alerta) || 0,
-      produtosProblemasQualidade: parseInt(statsResult.rows[0].produtos_problemas_qualidade) || 0,
-      produtosConsignados: parseInt(statsResult.rows[0].produtos_consignados) || 0
-    };
-
-    // Query para produtos - ATUALIZADA com novos campos
+    // ✅ CONSTRUIR CONDIÇÕES DOS FILTROS PARA REUTILIZAR NAS ESTATÍSTICAS E PRODUTOS
     let queryParams: any[] = [];
     let conditions: string[] = [];
-    let queryText = `
-      SELECT 
-        p.*,
-        p.quantity,
-        p.buy_date,
-        CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) as dias_em_estoque,
-        CASE 
-          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 365 THEN 'Mais de 1 ano'
-          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 180 THEN '6 meses - 1 ano'
-          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 90 THEN '3-6 meses'
-          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 30 THEN '1-3 meses'
-          ELSE 'Menos de 1 mês'
-        END as tempo_estoque_categoria,
-        COALESCE(array_agg(DISTINCT pm.material_name) FILTER (WHERE pm.material_name IS NOT NULL), ARRAY[]::text[]) as materials,
-        COALESCE(array_agg(DISTINCT pi.image_url) FILTER (WHERE pi.image_url IS NOT NULL), ARRAY[]::text[]) as images
-      FROM moari.products p
-      LEFT JOIN moari.product_materials pm ON p.id = pm.product_id
-      LEFT JOIN moari.product_images pi ON p.id = pi.product_id
-      LEFT JOIN moari.suppliers s ON p.supplier_id = s.id
-    `;
 
-    // ✅ FILTROS CORRIGIDOS - usando req.query diretamente para evitar conflitos
-    
     // Filtro de busca por nome ou código
     if (search) {
       queryParams.push(`%${search}%`);
@@ -493,7 +453,7 @@ router.get("/products", async (req: Request, res: Response) => {
       console.log('===============================\n');
     }
 
-    // ✅ Filtro por categoria - CORRIGIDO
+    // Filtro por categoria
     if (req.query.category) {
       queryParams.push(req.query.category);
       conditions.push(`p.category = $${queryParams.length}`);
@@ -506,17 +466,31 @@ router.get("/products", async (req: Request, res: Response) => {
       console.log('==================================\n');
     }
 
-    // Filtro por status
+    // ✅ FILTRO POR STATUS - COM DEBUG DETALHADO
     if (req.query.fstatus) {
-      queryParams.push(req.query.fstatus);
-      conditions.push(`p.status = $${queryParams.length}`);
+      console.log('\n🔍 === FILTRO STATUS BACKEND DEBUG ===');
+      console.log('req.query.fstatus recebido:', req.query.fstatus);
+      console.log('Tipo:', typeof req.query.fstatus);
+      console.log('É string vazia?:', req.query.fstatus === '');
+      console.log('É undefined?:', req.query.fstatus === undefined);
+      console.log('É null?:', req.query.fstatus === null);
+      console.log('Valor tratado como boolean:', !!req.query.fstatus);
       
-      console.log('\n🔍 === FILTRO STATUS DEBUG ===');
-      console.log('Status solicitado:', req.query.fstatus);
+      queryParams.push(req.query.fstatus);
+      const statusCondition = `p.status = $${queryParams.length}`;
+      conditions.push(statusCondition);
+      
       console.log('Parâmetro SQL:', `$${queryParams.length}`);
-      console.log('Condição aplicada:', `p.status = $${queryParams.length}`);
+      console.log('Condição aplicada:', statusCondition);
       console.log('Total de condições:', conditions.length);
-      console.log('================================\n');
+      console.log('Array queryParams atual:', queryParams);
+      console.log('Array conditions atual:', conditions);
+      console.log('======================================\n');
+    } else {
+      console.log('\n⚠️ === FILTRO STATUS NÃO APLICADO ===');
+      console.log('req.query.fstatus:', req.query.fstatus);
+      console.log('Motivo: valor falsy ou não fornecido');
+      console.log('=====================================\n');
     }
 
     // Filtro por fornecedor
@@ -578,18 +552,83 @@ router.get("/products", async (req: Request, res: Response) => {
       console.log('📊 Total de condições após tempo estoque:', conditions.length);
       console.log('=====================================\n');
     }
-        
-    // Aplicar condições WHERE
-    if (conditions.length > 0) {
-      queryText += ` WHERE ${conditions.join(" AND ")}`;
-      console.log('\n📋 === QUERY FINAL DEBUG ===');
-      console.log('Condições WHERE:', conditions);
-      console.log('Parâmetros:', queryParams);
-      console.log('=============================\n');
-    }
-    queryText += ` GROUP BY p.id`;
+
+    // ✅ CONSTRUIR CLÁUSULA WHERE PARA REUTILIZAR
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    console.log('\n📋 === CONDIÇÕES FINAIS ===');
+    console.log('WHERE clause:', whereClause);
+    console.log('Parâmetros:', queryParams);
+    console.log('===========================\n');
+
+    // ✅ CONSULTA PARA ESTATÍSTICAS COM OS MESMOS FILTROS APLICADOS
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_produtos,
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as produtos_ativos,
+        COUNT(CASE WHEN status != 'active' OR status IS NULL THEN 1 END) as produtos_inativos,
+        COUNT(CASE WHEN has_quality_issues = true THEN 1 END) as produtos_problemas_qualidade,
+        COUNT(CASE WHEN status = 'consigned' THEN 1 END) as produtos_consignados,
+        COALESCE(SUM(base_price * COALESCE(quantity, 1)), 0) as valor_total_estoque,
+        COALESCE(SUM(COALESCE(quantity, 1)), 0) as quantidade_total_estoque,
+        COUNT(CASE WHEN (CURRENT_DATE - COALESCE(buy_date, created_at::date)) > 180 THEN 1 END) as produtos_alerta,
+        ROUND(AVG(CURRENT_DATE - COALESCE(buy_date, created_at::date)), 0) as tempo_medio_estoque
+      FROM moari.products p
+      ${whereClause}
+    `;
+
+    console.log("✅ Executando consulta de estatísticas FILTRADAS");
+    console.log("Query de estatísticas:", statsQuery);
+    console.log("Parâmetros para estatísticas:", queryParams);
     
-    // Adiciona ordenação - ATUALIZADA com novas opções
+    const statsResult = await client.query(statsQuery, queryParams);
+    
+    // ✅ DEBUG APÓS EXECUTAR A QUERY DE ESTATÍSTICAS
+    console.log('\n📊 === RESULTADO ESTATÍSTICAS ===');
+    console.log('Query executada:', statsQuery);
+    console.log('Parâmetros usados:', queryParams);
+    console.log('Resultado bruto:', statsResult.rows[0]);
+    
+    const statistics = {
+      totalProdutos: parseInt(statsResult.rows[0].total_produtos) || 0,
+      valorTotalEstoque: parseFloat(statsResult.rows[0].valor_total_estoque) || 0,
+      quantidadeTotalEstoque: parseInt(statsResult.rows[0].quantidade_total_estoque) || 0,
+      tempoMedioEstoque: parseInt(statsResult.rows[0].tempo_medio_estoque) || 0,
+      produtosAtivos: parseInt(statsResult.rows[0].produtos_ativos) || 0,
+      produtosInativos: parseInt(statsResult.rows[0].produtos_inativos) || 0,
+      produtosAlerta: parseInt(statsResult.rows[0].produtos_alerta) || 0,
+      produtosProblemasQualidade: parseInt(statsResult.rows[0].produtos_problemas_qualidade) || 0,
+      produtosConsignados: parseInt(statsResult.rows[0].produtos_consignados) || 0
+    };
+
+    console.log('Estatísticas processadas:', statistics);
+    console.log('================================\n');
+
+    // ✅ QUERY PARA PRODUTOS COM OS MESMOS FILTROS
+    let productsQuery = `
+      SELECT 
+        p.*,
+        p.quantity,
+        p.buy_date,
+        CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) as dias_em_estoque,
+        CASE 
+          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 365 THEN 'Mais de 1 ano'
+          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 180 THEN '6 meses - 1 ano'
+          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 90 THEN '3-6 meses'
+          WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 30 THEN '1-3 meses'
+          ELSE 'Menos de 1 mês'
+        END as tempo_estoque_categoria,
+        COALESCE(array_agg(DISTINCT pm.material_name) FILTER (WHERE pm.material_name IS NOT NULL), ARRAY[]::text[]) as materials,
+        COALESCE(array_agg(DISTINCT pi.image_url) FILTER (WHERE pi.image_url IS NOT NULL), ARRAY[]::text[]) as images
+      FROM moari.products p
+      LEFT JOIN moari.product_materials pm ON p.id = pm.product_id
+      LEFT JOIN moari.product_images pi ON p.id = pi.product_id
+      LEFT JOIN moari.suppliers s ON p.supplier_id = s.id
+      ${whereClause}
+      GROUP BY p.id
+    `;
+        
+    // Adiciona ordenação
     let orderColumn = "p.created_at";
     if (orderBy === "name") orderColumn = "p.name";
     if (orderBy === "code") orderColumn = "p.code";
@@ -602,26 +641,26 @@ router.get("/products", async (req: Request, res: Response) => {
     let direction = "DESC";
     if (orderDirection === "asc") direction = "ASC";
     
-    queryText += ` ORDER BY ${orderColumn} ${direction}`;
+    productsQuery += ` ORDER BY ${orderColumn} ${direction}`;
 
-    // Adiciona limit e offset
-    queryParams.push(Number(limit), Number(offset));
-    queryText += ` LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
+    // ✅ ADICIONAR PARÂMETROS DE PAGINAÇÃO (SEPARADOS DOS FILTROS)
+    const paginationParams = [...queryParams, Number(limit), Number(offset)];
+    productsQuery += ` LIMIT $${paginationParams.length - 1} OFFSET $${paginationParams.length}`;
 
-    console.log("Executando consulta de produtos com parâmetros:", queryParams);
-    console.log("Query SQL final:", queryText);
+    console.log("✅ Executando consulta de produtos com parâmetros:", paginationParams);
+    console.log("Query SQL final:", productsQuery);
     
-    const productsResult = await client.query(queryText, queryParams);
-    console.log(`Consulta retornou ${productsResult.rows.length} produtos`);
+    const productsResult = await client.query(productsQuery, paginationParams);
+    console.log(`📦 Consulta retornou ${productsResult.rows.length} produtos de ${statistics.totalProdutos} total filtrado`);
 
     res.json({
       products: productsResult.rows,
-      statistics,
-      total: parseInt(statsResult.rows[0].total_produtos)
+      statistics, // ✅ Agora as estatísticas refletem os filtros aplicados
+      total: statistics.totalProdutos // ✅ Total também baseado nos filtros
     });
 
   } catch (error: any) {
-    console.error("Erro na consulta de produtos:", error);
+    console.error("❌ Erro na consulta de produtos:", error);
     handleDatabaseError(error, res);
   } finally {
     client.release();

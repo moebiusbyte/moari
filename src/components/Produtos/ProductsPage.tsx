@@ -56,78 +56,118 @@ const ProductsPage = () => {
     produtosConsignados: 0
   });
 
-    // Função para buscar produtos
-    const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "10",
-        search: searchTerm,
-        orderBy: ordenacao.campo,
-        orderDirection: ordenacao.ordem,
-        category: filtroAvancado.categoria,
-        tempoestoque: filtroAvancado.tempoEstoque,  // ✅ Este nome está correto
-        fstatus: filtroAvancado.status,
-        ffornecedor: filtroAvancado.fornecedor
-      });
+ // SUBSTITUIR a função fetchProducts por esta versão única e corrigida:
 
-      console.log('📤 Parâmetros enviados para a API:', {
-        page: page.toString(),
-        limit: "10", 
-        search: searchTerm,
-        orderBy: ordenacao.campo,
-        orderDirection: ordenacao.ordem,
-        category: filtroAvancado.categoria,
-        tempoestoque: filtroAvancado.tempoEstoque,  // Debug do filtro
-        fstatus: filtroAvancado.status,
-        ffornecedor: filtroAvancado.fornecedor
-      });
+const fetchProducts = async () => {
+  try {
+    setLoading(true);
     
-      const response = await api.get(`/products?${params}`);
-      
-      // Verifica se a resposta tem a estrutura esperada
-      if (response.data && response.data.products) {
-        setProducts(response.data.products);
-        setTotalPages(Math.ceil(response.data.total / 10));
-        if (response.data.statistics) {
-          setEstatisticas(response.data.statistics);
-        }
-      } else {
-        console.error("Resposta da API em formato inesperado:", response.data);
-        setProducts([]);  // Define um array vazio em caso de erro
-        setTotalPages(0);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar produtos:", error);
-      setProducts([]);  // Define um array vazio em caso de erro
-      setTotalPages(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // 🔍 DEBUG: Estado atual dos filtros
+    console.log('\n🚀 === DEBUG FILTROS ===');
+    console.log('Estado filtroAvancado:', JSON.stringify(filtroAvancado, null, 2));
+    console.log('Status selecionado:', filtroAvancado.status);
+    console.log('Tipo do status:', typeof filtroAvancado.status);
+    console.log('Status é vazio?', filtroAvancado.status === '');
+    console.log('========================\n');
+    
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: "10",
+      search: searchTerm,
+      orderBy: ordenacao.campo,
+      orderDirection: ordenacao.ordem,
+      category: filtroAvancado.categoria,
+      tempoestoque: filtroAvancado.tempoEstoque,
+      fstatus: filtroAvancado.status,
+      ffornecedor: filtroAvancado.fornecedor
+    });
 
-  // Função para buscar fornecedores para o filtro
-  const fetchSuppliers = async () => {
-    try {
-      const response = await api.get("/suppliers"); // Assuming this is your endpoint
-      // Assuming the backend returns an array of suppliers directly, or in a 'suppliers' property
-      console.log("API response for suppliers:", response.data);
-      const suppliersData = response.data.suppliers || response.data;
-      if (Array.isArray(suppliersData)) { // Check if response.data is an array
-        setSuppliers(suppliersData);
-      } else {
-        console.error("API response for suppliers is not an array:", response.data);
-        setSuppliers([]); // Set to empty array in case of unexpected response
-      }
-    } catch (error) {
-      console.error("Erro ao buscar fornecedores:", error);
-      setSuppliers([]); // Set to empty array in case of error
+    // 🔍 DEBUG: Parâmetros sendo enviados
+    console.log('📤 Parâmetros enviados para a API:', {
+      page: page.toString(),
+      limit: "10", 
+      search: searchTerm,
+      orderBy: ordenacao.campo,
+      orderDirection: ordenacao.ordem,
+      category: filtroAvancado.categoria,
+      tempoestoque: filtroAvancado.tempoEstoque,
+      fstatus: filtroAvancado.status,
+      ffornecedor: filtroAvancado.fornecedor
+    });
+
+    // 🔍 DEBUG: URL completa sendo chamada
+    const fullUrl = `/products?${params}`;
+    console.log('🌐 URL completa:', fullUrl);
+    console.log('🔗 Parâmetros na URL:', params.toString());
+  
+    const response = await api.get(fullUrl);
+    
+    // 🔍 DEBUG: Resposta da API
+    console.log('\n📥 === RESPOSTA DA API ===');
+    console.log('Total de produtos retornados:', response.data.products?.length);
+    console.log('Estatísticas recebidas:', response.data.statistics);
+    console.log('Total filtrado:', response.data.total);
+    
+    // Verificar se algum produto foi retornado
+    if (response.data.products && response.data.products.length > 0) {
+      console.log('📦 Primeiro produto retornado:', response.data.products[0]);
+      console.log('📊 Status dos produtos retornados:', 
+        response.data.products.map(p => ({ id: p.id, name: p.name, status: p.status }))
+      );
     }
-  };
+    console.log('==========================\n');
+    
+    // Verifica se a resposta tem a estrutura esperada
+    if (response.data && response.data.products) {
+      setProducts(response.data.products);
+      setTotalPages(Math.ceil(response.data.total / 10));
+      if (response.data.statistics) {
+        console.log('✅ Atualizando estatísticas:', response.data.statistics);
+        setEstatisticas(response.data.statistics);
+      }
+    } else {
+      console.error("Resposta da API em formato inesperado:", response.data);
+      setProducts([]);
+      setTotalPages(0);
+    }
+  } catch (error) {
+    console.error("Erro ao buscar produtos:", error);
+    setProducts([]);
+    setTotalPages(0);
+  } finally {
+    setLoading(false);
+  }
+};
+    
+// Função para buscar fornecedores para o filtro
+const fetchSuppliers = async () => {
+  try {
+    const response = await api.get("/suppliers"); // Assuming this is your endpoint
+    // Assuming the backend returns an array of suppliers directly, or in a 'suppliers' property
+    console.log("API response for suppliers:", response.data);
+    const suppliersData = response.data.suppliers || response.data;
+    if (Array.isArray(suppliersData)) { // Check if response.data is an array
+      setSuppliers(suppliersData);
+    } else {
+      console.error("API response for suppliers is not an array:", response.data);
+      setSuppliers([]); // Set to empty array in case of unexpected response
+    }
+  } catch (error) {
+    console.error("Erro ao buscar fornecedores:", error);
+    setSuppliers([]); // Set to empty array in case of error
+  }
+};
 
   // Atualizar produtos quando mudar página, busca ou filtros
   useEffect(() => {
+    console.log('\n🔄 === useEffect TRIGGERED ===');
+    console.log('Page changed:', page);
+    console.log('SearchTerm changed:', searchTerm);
+    console.log('FiltroAvancado changed:', filtroAvancado);
+    console.log('Ordenacao changed:', ordenacao);
+    console.log('Calling fetchProducts...');
+    console.log('==============================\n');
+    
     fetchProducts();
   }, [page, searchTerm, filtroAvancado, ordenacao]);
 
@@ -386,7 +426,21 @@ const handleConfirmDelete = async (productId: string) => {
 
         <select
           value={filtroAvancado.status}
-          onChange={(e) => setFiltroAvancado(prev => ({...prev, status: e.target.value}))}
+          onChange={(e) => {
+            const newStatus = e.target.value;
+            console.log('\n🎯 === STATUS FILTER CHANGE ===');
+            console.log('Valor anterior:', filtroAvancado.status);
+            console.log('Valor novo:', newStatus);
+            console.log('Tipo do valor:', typeof newStatus);
+            console.log('Estado filtroAvancado antes:', filtroAvancado);
+            
+            setFiltroAvancado(prev => {
+              const newState = {...prev, status: newStatus};
+              console.log('Estado filtroAvancado depois:', newState);
+              console.log('===============================\n');
+              return newState;
+            });
+          }}
           className="border rounded-lg px-6 py-2">
           <option value="">Status</option>
           <option value="active">Ativo</option>
