@@ -44,7 +44,6 @@ const debugQuery = (queryText: string, params?: any[]) => {
   console.log('========================\n');
 };
 
-// Alternativa: Middleware mais específico para o PUT
 router.put("/products/:id", 
   // Middleware de debug específico
   (req, res, next) => {
@@ -82,17 +81,19 @@ router.put("/products/:id",
         status,
         materials,
         removed_images,
-        buy_date,     // NOVO CAMPO
-        quantity      // NOVO CAMPO
+        buy_date,     // CAMPO EXISTENTE
+        quantity,     // CAMPO EXISTENTE
+        supplier_id   // NOVO CAMPO ADICIONADO
       } = req.body;
 
-      // Log específico dos valores que serão atualizados - CORRIGIDO
+      // Log específico dos valores que serão atualizados
       console.log('\n📊 === VALORES PARA ATUALIZAÇÃO ===');
       console.log('Status recebido:', status);
       console.log('Base price:', base_price);
       console.log('Profit margin:', profit_margin);
-      console.log('Buy date:', buy_date);        // AGORA ESTÁ NO ESCOPO CORRETO
-      console.log('Quantity:', quantity);        // AGORA ESTÁ NO ESCOPO CORRETO
+      console.log('Buy date:', buy_date);
+      console.log('Quantity:', quantity);
+      console.log('Supplier ID:', supplier_id);  // LOG DO NOVO CAMPO
       console.log('ID do produto:', id);
       console.log('===============================\n');
 
@@ -115,8 +116,9 @@ router.put("/products/:id",
           status = $14,
           buy_date = $15,
           quantity = $16,
+          supplier_id = $17,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $17
+        WHERE id = $18
         RETURNING *
       `;
 
@@ -137,6 +139,7 @@ router.put("/products/:id",
         status,
         buy_date,
         quantity,
+        supplier_id,  // NOVO PARÂMETRO
         id
       ];
 
@@ -160,7 +163,7 @@ router.put("/products/:id",
         throw new Error('Produto não encontrado');
       }
 
-      // Resto da lógica permanece igual...
+      // Atualizar imagens removidas
       if (removed_images && removed_images.length > 0) {
         await client.query(
           'DELETE FROM moari.product_images WHERE product_id = $1 AND image_url = ANY($2)',
@@ -168,6 +171,7 @@ router.put("/products/:id",
         );
       }
 
+      // Atualizar materiais
       if (materials) {
         await client.query(
           'DELETE FROM moari.product_materials WHERE product_id = $1',
@@ -183,6 +187,7 @@ router.put("/products/:id",
         }
       }
 
+      // Inserir novas imagens
       const files = req.files as Express.Multer.File[];
       if (files && files.length > 0) {
         for (let i = 0; i < files.length; i++) {
@@ -194,16 +199,19 @@ router.put("/products/:id",
         }
       }
 
+      // Buscar produto atualizado com relacionamentos
       const updatedProductQuery = `
         SELECT 
           p.*,
+          s.nome as supplier_name,
           array_agg(DISTINCT pm.material_name) as materials,
           array_agg(DISTINCT pi.image_url) as images
         FROM moari.products p
+        LEFT JOIN moari.suppliers s ON p.supplier_id = s.id
         LEFT JOIN moari.product_materials pm ON p.id = pm.product_id
         LEFT JOIN moari.product_images pi ON p.id = pi.product_id
         WHERE p.id = $1
-        GROUP BY p.id
+        GROUP BY p.id, s.nome
       `;
 
       const updatedProduct = await client.query(updatedProductQuery, [id]);

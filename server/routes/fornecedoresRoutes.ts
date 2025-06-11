@@ -329,166 +329,123 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
   }
 });
 
-router.delete('/products/:id', (async (req, res) => {
+router.delete("/suppliers/:id", (async (req: Request, res: Response): Promise<void> => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
+
+    console.log("Debug - Deletando fornecedor ID:", id);
+
+    // Primeiro, verificar quantos produtos estão associados (opcional, só para log)
+    const checkProductsQuery = `
+      SELECT COUNT(*) AS product_count
+      FROM moari.products
+      WHERE supplier_id = $1
+    `;
+    const productCheck = await client.query(checkProductsQuery, [id]);
+    const productCount = parseInt(productCheck.rows[0].product_count, 10);
     
-    await client.query('BEGIN');
-    
-    await client.query(
-      'DELETE FROM moari.product_images WHERE product_id = $1',
-      [id]
-    );
+    console.log(`Debug - Fornecedor ${id} possui ${productCount} produtos associados`);
 
-    await client.query(
-      'DELETE FROM moari.product_materials WHERE product_id = $1',
-      [id]
-    );
-
-    const result = await client.query(
-      'DELETE FROM moari.products WHERE id = $1 RETURNING *',
-      [id]
-    );
-
-    await client.query('COMMIT');
+    // Excluir fornecedor diretamente
+    const deleteQuery = `
+      DELETE FROM moari.suppliers
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await client.query(deleteQuery, [id]);
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: 'Produto não encontrado' });
+      res.status(404).json({ message: "Fornecedor não encontrado" });
+      return;
     }
 
-    res.status(200).json({ message: 'Produto deletado com sucesso' });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    handleDatabaseError(error, res);
+    console.log("Debug - Fornecedor deletado:", result.rows[0]);
+    res.status(200).json({ 
+      message: "Fornecedor excluído com sucesso",
+      deletedSupplier: result.rows[0]
+    });
+  } catch (error: any) {
+    console.error("Erro ao excluir fornecedor:", error);
+    
+    // Se for erro de constraint (FK), dar uma mensagem mais específica
+    if (error.code === '23503') {
+      res.status(400).json({ 
+        message: `Este fornecedor possui produtos associados e não pode ser excluído devido às restrições do banco de dados. Remova primeiro a associação dos produtos ou use a opção de inativar o fornecedor.`,
+        error: "Violação de chave estrangeira",
+        suggestion: "Edite os produtos associados para remover a referência ao fornecedor antes de excluí-lo."
+      });
+    } else {
+      handleDatabaseError(error, res);
+    }
   } finally {
     client.release();
   }
 }) as RequestHandler);
 
-router.put("/products/:id", upload.array("images", 5), async (req, res) => {
+router.put("/suppliers/:id", (async (req: Request, res: Response) => {
   const client = await pool.connect();
-  
   try {
-    await client.query("BEGIN");
-    
     const { id } = req.params;
     const {
-      code,
-      name,
-      category,
-      format,
-      quality,
-      material_type,
-      usage_mode,
-      size,
-      origin,
-      warranty,
-      base_price,
-      profit_margin,
-      description,
-      materials,
-      removed_images
+      nome,
+      contato,
+      telefone,
+      email,
+      cidade,
+      estado,
+      endereco,
+      ultima_compra,
     } = req.body;
 
+    console.log("Debug - Atualizando fornecedor ID:", id);
+    console.log("Debug - Dados recebidos:", req.body);
+
     const updateQuery = `
-      UPDATE moari.products 
+      UPDATE moari.suppliers 
       SET 
-        code = $1,
-        name = $2,
-        category = $3,
-        format = $4,
-        quality = $5,
-        material_type = $6,
-        usage_mode = $7,
-        size = $8,
-        origin = $9,
-        warranty = $10,
-        base_price = $11,
-        profit_margin = $12,
-        description = $13,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $14
-      RETURNING *
+        nome = $1,
+        contato = $2,
+        telefone = $3,
+        email = $4,
+        cidade = $5,
+        estado = $6,
+        endereco = $7,
+        ultima_compra = $8
+      WHERE id = $9
+      RETURNING *;
     `;
 
-    const productResult = await client.query(updateQuery, [
-      code,
-      name,
-      category,
-      format,
-      quality,
-      material_type,
-      usage_mode,
-      size,
-      origin,
-      warranty,
-      base_price,
-      profit_margin,
-      description,
+    const values = [
+      nome,
+      contato,
+      telefone,
+      email,
+      cidade,
+      estado,
+      endereco,
+      ultima_compra ? new Date(ultima_compra) : null,
       id
-    ]);
+    ];
 
-    if (productResult.rowCount === 0) {
-      throw new Error('Produto não encontrado');
+    console.log("Debug - Query SQL:", updateQuery);
+    console.log("Debug - Valores enviados:", values);
+
+    const result = await client.query(updateQuery, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Fornecedor não encontrado" });
     }
 
-    if (removed_images && removed_images.length > 0) {
-      await client.query(
-        'DELETE FROM moari.product_images WHERE product_id = $1 AND image_url = ANY($2)',
-        [id, removed_images]
-      );
-    }
-
-    if (materials) {
-      await client.query(
-        'DELETE FROM moari.product_materials WHERE product_id = $1',
-        [id]
-      );
-
-      const materialsList = Array.isArray(materials) ? materials : JSON.parse(materials);
-      for (const material of materialsList) {
-        await client.query(
-          'INSERT INTO moari.product_materials (product_id, material_name) VALUES ($1, $2)',
-          [id, material]
-        );
-      }
-    }
-
-    const files = req.files as Express.Multer.File[];
-    if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const imageUrl = `https://storage.example.com/${uuidv4()}.jpg`;
-        await client.query(
-          'INSERT INTO moari.product_images (product_id, image_url, order_index) VALUES ($1, $2, $3)',
-          [id, imageUrl, i]
-        );
-      }
-    }
-
-    const updatedProductQuery = `
-      SELECT 
-        p.*,
-        array_agg(DISTINCT pm.material_name) as materials,
-        array_agg(DISTINCT pi.image_url) as images
-      FROM moari.products p
-      LEFT JOIN moari.product_materials pm ON p.id = pm.product_id
-      LEFT JOIN moari.product_images pi ON p.id = pi.product_id
-      WHERE p.id = $1
-      GROUP BY p.id
-    `;
-
-    const updatedProduct = await client.query(updatedProductQuery, [id]);
-
-    await client.query("COMMIT");
-    res.json(updatedProduct.rows[0]);
+    console.log("Debug - Fornecedor atualizado:", result.rows[0]);
+    res.json(result.rows[0]);
   } catch (error) {
-    await client.query("ROLLBACK");
+    console.error("Erro ao atualizar fornecedor:", error);
     handleDatabaseError(error, res);
   } finally {
     client.release();
   }
-});
+}) as RequestHandler);
 
 // Rota GET: Listar fornecedores com filtros, paginação e ordenação
 router.get("/suppliers", async (req: Request, res: Response) => {

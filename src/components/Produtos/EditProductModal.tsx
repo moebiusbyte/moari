@@ -2,19 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Product } from '../../types/product';
+import type { Supplier } from '../../types/supplier';
 
 interface EditProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (updatedData: Partial<Product>, newImages: File[]) => Promise<void>;
   product: Product;
+  suppliers: Supplier[]; // Nova prop para lista de fornecedores
 }
 
 const EditProductModal: React.FC<EditProductModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  product
+  product,
+  suppliers
 }) => {
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [newImages, setNewImages] = useState<File[]>([]);
@@ -22,15 +25,17 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
-// 1. Atualizar o useEffect para incluir os novos campos
+// Atualizar o useEffect para incluir o supplier_id
 useEffect(() => {
   if (product) {
+    console.log('🔍 Product data received in modal:', product);
+    console.log('🏢 Supplier ID from product:', product.supplier_id);
+    
     setFormData({
       id: product.id,
       code: product.code,
       name: product.name,
       category: product.category,
-      quality: product.quality,
       material_type: product.material_type,
       size: product.size,
       base_price: product.base_price,
@@ -38,12 +43,13 @@ useEffect(() => {
       description: product.description,
       status: product.status,
       quantity: product.quantity,
-      buy_date: product.buy_date
+      buy_date: product.buy_date,
+      supplier_id: product.supplier_id || '' // Garantir que não seja undefined
     });
   }
 }, [product]);
 
-// 2. Atualizar a validação para incluir quantity
+// Validação para campos numéricos
 const validateNumberInput = (value: string, maxValue: number) => {
   const numValue = parseFloat(value);
   if (isNaN(numValue)) return "";
@@ -73,7 +79,7 @@ const handleChange = (
     } else {
       setValidationMessage(null);
     }
-  } else if (name === "quantity") {  // NOVA VALIDAÇÃO
+  } else if (name === "quantity") {
     const intValue = parseInt(value);
     if (isNaN(intValue) || intValue < 0) {
       validatedValue = "1";
@@ -104,6 +110,9 @@ const handleChange = (
     setError(null);
 
     try {
+      console.log('📤 Form data being sent:', formData);
+      console.log('🏢 Supplier ID being sent:', formData.supplier_id);
+      
       await onSave(formData, newImages);
       onClose();
     } catch (err) {
@@ -131,10 +140,10 @@ const handleChange = (
   
         {/* Conteúdo com scroll */}
         <div className="overflow-y-auto flex-1 p-6">
-          <form id="edit-product-form" onSubmit={handleSubmit}>
+          <form id="edit-product-form" onSubmit={handleSubmit} className="space-y-4">
 
            <div>
-              <label className="block text-sm font-medium text-gray-700  mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Código
               </label>
               <input
@@ -142,7 +151,7 @@ const handleChange = (
                 name="code"
                 value={formData.code || ''}
                 onChange={handleChange}
-                className="w-full rounded-lg border border-gray-300  bg-gray-200 p-2"
+                className="w-full rounded-lg border border-gray-300 bg-gray-200 p-2"
                 readOnly
               />
             </div>
@@ -176,6 +185,29 @@ const handleChange = (
                 <option value="aneis">Anéis</option>
                 <option value="pulseiras">Pulseiras</option>
               </select>
+            </div>
+
+            {/* NOVO CAMPO: Fornecedor */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fornecedor
+              </label>
+              <select
+                name="supplier_id"
+                value={formData.supplier_id || ''}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-gray-300 p-2"
+              >
+                <option value="">Selecione um fornecedor...</option>
+                {suppliers.map(supplier => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.nome || `Fornecedor ${supplier.id}`}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-gray-500">
+                Associe este produto a um fornecedor existente
+              </span>
             </div>
 
             <div>
@@ -275,7 +307,7 @@ const handleChange = (
             <span className="text-xs text-gray-500">Data de entrada no estoque</span>
             </div>
   
-            <div className="mt-6">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Descrição
               </label>
@@ -311,7 +343,7 @@ const handleChange = (
             </div>
             )}
   
-            <div className="mt-6">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Novas Imagens
               </label>

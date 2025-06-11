@@ -4,9 +4,9 @@ export interface Product {
     contato: string;
     telefone: string;
     email: string;
+    endereco: string;
     cidade: string;
     estado: string;
-    endereco: string;
     ultimacompra: Date;
     status: 'Ativo' | 'Inativo';
   }

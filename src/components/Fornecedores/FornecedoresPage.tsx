@@ -10,6 +10,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+import EditFornecedorModal from './EditFornecedoresModal';
 import CadastroFornecedores from "./CadastroFornecedores";
 import api from "../../../server/api/axiosConfig";
 
@@ -26,10 +27,12 @@ interface Fornecedor {
 }
 
 const FornecedoresPage = () => {
-  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [selectedFornecedor, setSelectedFornecedor] = useState<Fornecedor | null>(null);
 
   // Função para buscar fornecedores da API
   const fetchFornecedores = async () => {
@@ -43,6 +46,40 @@ const FornecedoresPage = () => {
       console.error("Erro ao buscar fornecedores:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handler para edição de fornecedor
+  const handleEditFornecedor = (fornecedor: Fornecedor) => {
+    setSelectedFornecedor(fornecedor);
+    setEditModalOpen(true);
+  };
+
+  // Handler para atualização de fornecedor
+  const handleUpdateFornecedor = async (updatedData: Partial<Fornecedor>) => {
+    try {
+      if (!selectedFornecedor) return;
+      
+      await api.put(`/suppliers/${selectedFornecedor.id}`, updatedData);
+      await fetchFornecedores(); // Recarrega a lista
+      setEditModalOpen(false);
+      setSelectedFornecedor(null);
+    } catch (error) {
+      console.error("Erro ao atualizar fornecedor:", error);
+      throw error;
+    }
+  };
+
+  // Handler para exclusão de fornecedor
+  const handleDeleteFornecedor = async (id: number) => {
+    if (window.confirm("Tem certeza que deseja excluir este fornecedor?")) {
+      try {
+        await api.delete(`/suppliers/${id}`);
+        await fetchFornecedores(); // Recarrega a lista
+      } catch (error) {
+        console.error("Erro ao excluir fornecedor:", error);
+        alert("Erro ao excluir fornecedor. Verifique se não há produtos associados.");
+      }
     }
   };
 
@@ -92,46 +129,69 @@ const FornecedoresPage = () => {
 
       {/* Lista de Fornecedores */}
       {loading ? (
-        <p>Carregando...</p>
+        <div className="flex justify-center items-center h-64">
+          <p className="text-gray-500">Carregando...</p>
+        </div>
       ) : fornecedores.length === 0 ? (
-        <p>Nenhum fornecedor encontrado.</p>
+        <div className="flex justify-center items-center h-64">
+          <p className="text-gray-500">Nenhum fornecedor encontrado.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {fornecedores.map((fornecedor) => (
-            <div key={fornecedor.id} className="bg-white rounded-lg shadow">
+            <div key={fornecedor.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
               {/* Card Header */}
               <div className="p-6 border-b">
                 <div className="flex justify-between items-start mb-4">
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900">
                       {fornecedor.nome}
                     </h3>
                     <p className="text-sm text-gray-500">{fornecedor.contato}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditFornecedor(fornecedor)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Editar fornecedor"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteFornecedor(fornecedor.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Excluir fornecedor"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
 
                 {/* Contact Info */}
                 <div className="space-y-2">
                   <div className="flex items-center text-sm text-gray-600">
-                    <Phone size={16} className="mr-2" />
-                    {fornecedor.telefone}
+                    <Phone size={16} className="mr-2 flex-shrink-0" />
+                    <span>{fornecedor.telefone || 'Não informado'}</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
-                    <Mail size={16} className="mr-2" />
-                    {fornecedor.email}
+                    <Mail size={16} className="mr-2 flex-shrink-0" />
+                    <span className="truncate">{fornecedor.email || 'Não informado'}</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
-                    <MapPin size={16} className="mr-2" />
-                    {fornecedor.cidade}, {fornecedor.estado}
+                    <MapPin size={16} className="mr-2 flex-shrink-0" />
+                    <span>{fornecedor.cidade && fornecedor.estado ? 
+                      `${fornecedor.cidade}, ${fornecedor.estado}` : 
+                      'Não informado'
+                    }</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
-                    <Calendar size={16} className="mr-2" />
-                    Última compra:{" "}
-                    {fornecedor.ultima_compra
-                      ? new Date(fornecedor.ultima_compra).toLocaleDateString(
-                          "pt-BR"
-                        )
-                      : "N/A"}
+                    <Calendar size={16} className="mr-2 flex-shrink-0" />
+                    <span>
+                      Última compra:{" "}
+                      {fornecedor.ultima_compra
+                        ? new Date(fornecedor.ultima_compra).toLocaleDateString("pt-BR")
+                        : "N/A"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -140,12 +200,25 @@ const FornecedoresPage = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal de Cadastro */}
       {isModalOpen && (
         <CadastroFornecedores
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveFornecedor}
+        />
+      )}
+
+      {/* Modal de Edição */}
+      {selectedFornecedor && editModalOpen && (
+        <EditFornecedorModal
+          isOpen={editModalOpen}
+          onClose={() => {
+            setEditModalOpen(false);
+            setSelectedFornecedor(null);
+          }}
+          onSave={handleUpdateFornecedor}
+          fornecedor={selectedFornecedor}
         />
       )}
     </div>

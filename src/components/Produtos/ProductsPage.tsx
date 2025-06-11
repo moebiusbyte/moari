@@ -151,75 +151,84 @@ const ProductsPage = () => {
     setIsModalOpen(true);
   };
 
-  // Handler para atualização de produto
-  const handleUpdateProduct = async (updatedProduct: Partial<Product>, newImages: File[] = []) => {
-    try {
-      const formData = new FormData();
-  
-      // Garantir que temos o ID do produto
-      if (!selectedProduct?.id) {
-        throw new Error('ID do produto não encontrado');
-      }
-  
-      // Adicionar campos do produto
-      Object.entries(updatedProduct).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          if (key === 'materials' || key === 'images') {
-            formData.append(key, JSON.stringify(value));
-          } else {
-            formData.append(key, value.toString());
-          }
+
+const handleUpdateProduct = async (updatedProduct: Partial<Product>, newImages: File[] = []) => {
+  try {
+    const formData = new FormData();
+
+    // Garantir que temos o ID do produto
+    if (!selectedProduct?.id) {
+      throw new Error('ID do produto não encontrado');
+    }
+
+    console.log('🔍 Updated product data received:', updatedProduct);
+    console.log('🏢 Supplier ID from form:', updatedProduct.supplier_id);
+
+    // Adicionar campos do produto - INCLUINDO supplier_id
+    Object.entries(updatedProduct).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        if (key === 'materials' || key === 'images') {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, value.toString());
         }
-      });
-  
-      // Adicionar novas imagens
-      newImages.forEach((image) => {
-        formData.append('images', image);
-      });
-  
-      const response = await api.put(`/products/${selectedProduct.id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-  
-      // Atualizar lista de produtos
-      setProducts(prevProducts =>
-        prevProducts.map(p =>
-          p.id.toString() === selectedProduct.id.toString() ? response.data : p
-        )
-      );
-  
-      setEditModalOpen(false);
-      setSelectedProduct(null);
-    } catch (error) {
-      console.error('Erro ao atualizar produto:', error);
-      throw error;
-    }
-  };
+      }
+    });
 
-  // Handler para exclusão de produto
-  const handleDeleteProduct = (productId: string) => {
-    const product = products.find(p => p.id.toString() === productId.toString());
-    if (product) {
-      setSelectedProduct(product);
-      setDeleteModalOpen(true);
-    }
-  };
+    // Adicionar novas imagens
+    newImages.forEach((image) => {
+      formData.append('images', image);
+    });
 
-  // Handler para confirmação de exclusão
-  const handleConfirmDelete = async (productId: string) => {
-    try {
-      await api.delete(`/products/${productId}`);
-      setProducts(prevProducts => prevProducts.filter(p => p.id.toString() !== productId.toString()));
-      setDeleteModalOpen(false);
-      setSelectedProduct(null);
-    } catch (error) {
-      console.error('Erro ao excluir produto:', error);
+    console.log('📤 FormData being sent to backend:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
     }
-  };
 
-  // Handler para salvar novo produto
+    const response = await api.put(`/products/${selectedProduct.id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    console.log('✅ Response from backend:', response.data);
+
+    // Atualizar lista de produtos
+    setProducts(prevProducts =>
+      prevProducts.map(p =>
+        p.id.toString() === selectedProduct.id.toString() ? response.data : p
+      )
+    );
+
+    setEditModalOpen(false);
+    setSelectedProduct(null);
+  } catch (error) {
+    console.error('❌ Erro ao atualizar produto:', error);
+    throw error;
+  }
+};
+
+// Handler para exclusão de produto
+const handleDeleteProduct = (productId: string) => {
+  const product = products.find(p => p.id.toString() === productId.toString());
+  if (product) {
+    setSelectedProduct(product);
+    setDeleteModalOpen(true);
+  }
+};
+
+// Handler para confirmação de exclusão
+const handleConfirmDelete = async (productId: string) => {
+  try {
+    await api.delete(`/products/${productId}`);
+    setProducts(prevProducts => prevProducts.filter(p => p.id.toString() !== productId.toString()));
+    setDeleteModalOpen(false);
+    setSelectedProduct(null);
+  } catch (error) {
+    console.error('Erro ao excluir produto:', error);
+  }
+};
+
  const handleSaveProduto = async (produto: any, imagens: File[]) => {
   try {
     console.log('📦 Dados recebidos do formulário:', produto);
@@ -398,7 +407,7 @@ const ProductsPage = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Margem</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço Final</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
 
@@ -426,7 +435,6 @@ const ProductsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">R$ {Number(product.base_price).toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">% {Number(product.profit_margin).toFixed(2)}</td>
                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">R$ {(Number(product.base_price) * ((Number(product.profit_margin) / 100) + 1)).toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"></td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -517,7 +525,9 @@ const ProductsPage = () => {
             setSelectedProduct(null);
           }}
           onSave={(formData, newImages) => handleUpdateProduct(formData, newImages)}
-          product={selectedProduct}/>
+          product={selectedProduct}
+          suppliers={suppliers} // ← ADICIONAR ESTA LINHA
+        />
       )}
 
       {selectedProduct && deleteModalOpen && (
