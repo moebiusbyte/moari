@@ -5,6 +5,7 @@ import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
 import productsRoutes from './routes/productRoutes';
 import fornecedoresRoutes from './routes/fornecedoresRoutes';
+import salesRoutes from './routes/VendasRoutes'; // ← ADICIONAR ESTA LINHA
 import { pool, setupDatabase } from '../database';
 
 dotenv.config();
@@ -34,7 +35,6 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization']
   })
 );
-
 
 console.log("NODE_ENV:", process.env.NODE_ENV);
 console.log("Database URL exists:", !!process.env.DATABASE_URL);
@@ -83,6 +83,7 @@ app.use(errorHandler);
 // Rotas
 app.use('/api', productsRoutes);
 app.use('/api', fornecedoresRoutes);
+app.use('/api', salesRoutes); // ← ADICIONAR ESTA LINHA
 
 // Rota de registro
 app.post("/auth/register", async (req: Request, res: Response, next: NextFunction) => {
@@ -198,6 +199,37 @@ app.get("/ping", async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+// Rota de debug para listar todas as rotas registradas
+app.get("/api/debug-routes", (req: Request, res: Response) => {
+  const routes: any[] = [];
+  
+  app._router.stack.forEach((middleware: any) => {
+    if (middleware.route) {
+      // Rotas diretas
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    } else if (middleware.name === 'router') {
+      // Rotas de router (como as nossas /api)
+      middleware.handle.stack.forEach((handler: any) => {
+        if (handler.route) {
+          routes.push({
+            path: `/api${handler.route.path}`,
+            methods: Object.keys(handler.route.methods)
+          });
+        }
+      });
+    }
+  });
+  
+  res.json({ 
+    message: "Rotas registradas:",
+    routes: routes,
+    totalRoutes: routes.length
+  });
+});
+
 app._router.stack.forEach((r: any) => {
   if (r.route && r.route.path) {
     console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
@@ -215,11 +247,22 @@ async function startServer() {
       console.log(`- PORT: ${PORT}`);
       console.log(`- HOST: ${HOST}`);
       console.log(`- NODE_ENV: ${process.env.NODE_ENV}`);
+      
+      // Log das rotas registradas
+      console.log('\n🚀 === ROTAS REGISTRADAS ===');
       app._router.stack.forEach((r: any) => {
         if (r.route && r.route.path) {
-          console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
+          console.log(`${Object.keys(r.route.methods).join(', ').toUpperCase()} ${r.route.path}`);
+        } else if (r.name === 'router') {
+          console.log('Router middleware encontrado - verificando rotas internas...');
+          r.handle.stack.forEach((handler: any) => {
+            if (handler.route) {
+              console.log(`${Object.keys(handler.route.methods).join(', ').toUpperCase()} /api${handler.route.path}`);
+            }
+          });
         }
       });
+      console.log('==========================\n');
     });
 
   } catch (error) {

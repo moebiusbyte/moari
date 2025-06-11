@@ -417,17 +417,6 @@ router.get("/products", async (req: Request, res: Response) => {
   try {
     console.log("Consulta de produtos recebida com parâmetros:", req.query);
     
-    // 🔍 DEBUG DETALHADO DOS PARÂMETROS RECEBIDOS
-    console.log('\n🎯 === DEBUG PARÂMETROS RECEBIDOS ===');
-    console.log('req.query.fstatus:', req.query.fstatus);
-    console.log('Tipo de fstatus:', typeof req.query.fstatus);
-    console.log('fstatus é string vazia?:', req.query.fstatus === '');
-    console.log('fstatus é undefined?:', req.query.fstatus === undefined);
-    console.log('fstatus é null?:', req.query.fstatus === null);
-    console.log('fstatus truthy?:', !!req.query.fstatus);
-    console.log('Todos os parâmetros de query:', JSON.stringify(req.query, null, 2));
-    console.log('======================================\n');
-    
     const { 
       page = 1, 
       limit = 10, 
@@ -438,80 +427,47 @@ router.get("/products", async (req: Request, res: Response) => {
     
     const offset = (Number(page) - 1) * Number(limit);
 
-    // ✅ CONSTRUIR CONDIÇÕES DOS FILTROS PARA REUTILIZAR NAS ESTATÍSTICAS E PRODUTOS
+    // ✅ CONSTRUIR CONDIÇÕES DOS FILTROS
     let queryParams: any[] = [];
     let conditions: string[] = [];
+
+    // ✅ FILTRO CRÍTICO: APENAS PRODUTOS COM ESTOQUE > 0 (SOMENTE PARA VENDAS)
+    // Este filtro deve ser aplicado APENAS quando forSale=true
+    const isForSale = req.query.forSale === 'true';
+    if (isForSale) {
+      conditions.push(`p.quantity > 0`);
+      console.log('🛡️ Filtro de estoque aplicado: apenas produtos com quantity > 0 (para venda)');
+    } else {
+      console.log('📋 Consultando TODOS os produtos (incluindo sem estoque) - tela administrativa');
+    }
 
     // Filtro de busca por nome ou código
     if (search) {
       queryParams.push(`%${search}%`);
       conditions.push(`(p.name ILIKE $${queryParams.length} OR p.code ILIKE $${queryParams.length})`);
-      
-      console.log('\n🔍 === FILTRO BUSCA DEBUG ===');
-      console.log('Termo de busca:', search);
-      console.log('Condição aplicada:', `(p.name ILIKE $${queryParams.length} OR p.code ILIKE $${queryParams.length})`);
-      console.log('===============================\n');
     }
 
     // Filtro por categoria
     if (req.query.category) {
       queryParams.push(req.query.category);
       conditions.push(`p.category = $${queryParams.length}`);
-      
-      console.log('\n🎯 === FILTRO CATEGORIA DEBUG ===');
-      console.log('Categoria solicitada:', req.query.category);
-      console.log('Parâmetro SQL:', `$${queryParams.length}`);
-      console.log('Condição aplicada:', `p.category = $${queryParams.length}`);
-      console.log('Total de condições:', conditions.length);
-      console.log('==================================\n');
     }
 
-    // ✅ FILTRO POR STATUS - COM DEBUG DETALHADO
+    // Filtro por status
     if (req.query.fstatus) {
-      console.log('\n🔍 === FILTRO STATUS BACKEND DEBUG ===');
-      console.log('req.query.fstatus recebido:', req.query.fstatus);
-      console.log('Tipo:', typeof req.query.fstatus);
-      console.log('É string vazia?:', req.query.fstatus === '');
-      console.log('É undefined?:', req.query.fstatus === undefined);
-      console.log('É null?:', req.query.fstatus === null);
-      console.log('Valor tratado como boolean:', !!req.query.fstatus);
-      
       queryParams.push(req.query.fstatus);
-      const statusCondition = `p.status = $${queryParams.length}`;
-      conditions.push(statusCondition);
-      
-      console.log('Parâmetro SQL:', `$${queryParams.length}`);
-      console.log('Condição aplicada:', statusCondition);
-      console.log('Total de condições:', conditions.length);
-      console.log('Array queryParams atual:', queryParams);
-      console.log('Array conditions atual:', conditions);
-      console.log('======================================\n');
-    } else {
-      console.log('\n⚠️ === FILTRO STATUS NÃO APLICADO ===');
-      console.log('req.query.fstatus:', req.query.fstatus);
-      console.log('Motivo: valor falsy ou não fornecido');
-      console.log('=====================================\n');
+      conditions.push(`p.status = $${queryParams.length}`);
     }
 
     // Filtro por fornecedor
     if (req.query.ffornecedor) {
       queryParams.push(req.query.ffornecedor);
       conditions.push(`p.supplier_id = $${queryParams.length}`);
-      
-      console.log('\n🎯 === FILTRO FORNECEDOR DEBUG ===');
-      console.log('Fornecedor ID solicitado:', req.query.ffornecedor);
-      console.log('Parâmetro SQL:', `$${queryParams.length}`);
-      console.log('Condição aplicada:', `p.supplier_id = $${queryParams.length}`);
-      console.log('Total de condições:', conditions.length);
-      console.log('===================================\n');
     }
 
     // Filtro tempo em estoque
     if (req.query.tempoestoque) {
       const tempoEstoque = req.query.tempoestoque as string;
-      
-      console.log(`\n🎯 === FILTRO TEMPO ESTOQUE DEBUG ===`);
-      console.log('Tempo em estoque solicitado:', tempoEstoque);
       
       switch (tempoEstoque) {
         case "0-1":
@@ -519,49 +475,37 @@ router.get("/products", async (req: Request, res: Response) => {
             (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) >= 0 
             AND (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) <= 30
           `);
-          console.log('✅ Filtro 0-1 mês aplicado');
           break;
-          
         case "1-3":
           conditions.push(`
             (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) > 30 
             AND (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) <= 90
           `);
-          console.log('✅ Filtro 1-3 meses aplicado');
           break;
-          
         case "3-6":
           conditions.push(`
             (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) > 90 
             AND (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) <= 180
           `);
-          console.log('✅ Filtro 3-6 meses aplicado');
           break;
-          
         case "6+":
           conditions.push(`
             (CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date)) > 180
           `);
-          console.log('✅ Filtro 6+ meses aplicado');
           break;
-          
-        default:
-          console.log('⚠️ Valor de tempo em estoque não reconhecido:', tempoEstoque);
       }
-      
-      console.log('📊 Total de condições após tempo estoque:', conditions.length);
-      console.log('=====================================\n');
     }
 
-    // ✅ CONSTRUIR CLÁUSULA WHERE PARA REUTILIZAR
+    // Construir cláusula WHERE
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     console.log('\n📋 === CONDIÇÕES FINAIS ===');
     console.log('WHERE clause:', whereClause);
     console.log('Parâmetros:', queryParams);
+    console.log('É para venda?:', isForSale);
     console.log('===========================\n');
 
-    // ✅ CONSULTA PARA ESTATÍSTICAS COM OS MESMOS FILTROS APLICADOS
+    // Consulta para estatísticas
     const statsQuery = `
       SELECT 
         COUNT(*) as total_produtos,
@@ -572,22 +516,13 @@ router.get("/products", async (req: Request, res: Response) => {
         COALESCE(SUM(base_price * COALESCE(quantity, 1)), 0) as valor_total_estoque,
         COALESCE(SUM(COALESCE(quantity, 1)), 0) as quantidade_total_estoque,
         COUNT(CASE WHEN (CURRENT_DATE - COALESCE(buy_date, created_at::date)) > 180 THEN 1 END) as produtos_alerta,
-        ROUND(AVG(CURRENT_DATE - COALESCE(buy_date, created_at::date)), 0) as tempo_medio_estoque
+        ROUND(AVG(CURRENT_DATE - COALESCE(buy_date, created_at::date)), 0) as tempo_medio_estoque,
+        COUNT(CASE WHEN quantity <= 0 THEN 1 END) as produtos_sem_estoque
       FROM moari.products p
       ${whereClause}
     `;
 
-    console.log("✅ Executando consulta de estatísticas FILTRADAS");
-    console.log("Query de estatísticas:", statsQuery);
-    console.log("Parâmetros para estatísticas:", queryParams);
-    
     const statsResult = await client.query(statsQuery, queryParams);
-    
-    // ✅ DEBUG APÓS EXECUTAR A QUERY DE ESTATÍSTICAS
-    console.log('\n📊 === RESULTADO ESTATÍSTICAS ===');
-    console.log('Query executada:', statsQuery);
-    console.log('Parâmetros usados:', queryParams);
-    console.log('Resultado bruto:', statsResult.rows[0]);
     
     const statistics = {
       totalProdutos: parseInt(statsResult.rows[0].total_produtos) || 0,
@@ -598,13 +533,11 @@ router.get("/products", async (req: Request, res: Response) => {
       produtosInativos: parseInt(statsResult.rows[0].produtos_inativos) || 0,
       produtosAlerta: parseInt(statsResult.rows[0].produtos_alerta) || 0,
       produtosProblemasQualidade: parseInt(statsResult.rows[0].produtos_problemas_qualidade) || 0,
-      produtosConsignados: parseInt(statsResult.rows[0].produtos_consignados) || 0
+      produtosConsignados: parseInt(statsResult.rows[0].produtos_consignados) || 0,
+      produtosSemEstoque: parseInt(statsResult.rows[0].produtos_sem_estoque) || 0
     };
 
-    console.log('Estatísticas processadas:', statistics);
-    console.log('================================\n');
-
-    // ✅ QUERY PARA PRODUTOS COM OS MESMOS FILTROS
+    // Query para produtos
     let productsQuery = `
       SELECT 
         p.*,
@@ -618,6 +551,11 @@ router.get("/products", async (req: Request, res: Response) => {
           WHEN CURRENT_DATE - COALESCE(p.buy_date, p.created_at::date) > 30 THEN '1-3 meses'
           ELSE 'Menos de 1 mês'
         END as tempo_estoque_categoria,
+        CASE 
+          WHEN p.quantity <= 0 THEN 'SEM ESTOQUE'
+          WHEN p.quantity <= 5 THEN 'ESTOQUE BAIXO'
+          ELSE 'ESTOQUE OK'
+        END as status_estoque,
         COALESCE(array_agg(DISTINCT pm.material_name) FILTER (WHERE pm.material_name IS NOT NULL), ARRAY[]::text[]) as materials,
         COALESCE(array_agg(DISTINCT pi.image_url) FILTER (WHERE pi.image_url IS NOT NULL), ARRAY[]::text[]) as images
       FROM moari.products p
@@ -643,20 +581,20 @@ router.get("/products", async (req: Request, res: Response) => {
     
     productsQuery += ` ORDER BY ${orderColumn} ${direction}`;
 
-    // ✅ ADICIONAR PARÂMETROS DE PAGINAÇÃO (SEPARADOS DOS FILTROS)
+    // Adicionar parâmetros de paginação
     const paginationParams = [...queryParams, Number(limit), Number(offset)];
     productsQuery += ` LIMIT $${paginationParams.length - 1} OFFSET $${paginationParams.length}`;
 
     console.log("✅ Executando consulta de produtos com parâmetros:", paginationParams);
-    console.log("Query SQL final:", productsQuery);
+    debugQuery(productsQuery, paginationParams);
     
     const productsResult = await client.query(productsQuery, paginationParams);
     console.log(`📦 Consulta retornou ${productsResult.rows.length} produtos de ${statistics.totalProdutos} total filtrado`);
 
     res.json({
       products: productsResult.rows,
-      statistics, // ✅ Agora as estatísticas refletem os filtros aplicados
-      total: statistics.totalProdutos // ✅ Total também baseado nos filtros
+      statistics,
+      total: statistics.totalProdutos
     });
 
   } catch (error: any) {
@@ -666,6 +604,7 @@ router.get("/products", async (req: Request, res: Response) => {
     client.release();
   }
 });
+
 
 router.get("/debug-stock-time", async (req: Request, res: Response) => {
   const client = await pool.connect();
@@ -865,6 +804,64 @@ router.post("/products",
     }
   }
 );
+
+router.get("/products-for-sale", async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const { search = '', limit = 50 } = req.query;
+    
+    let queryParams: any[] = [];
+    let conditions: string[] = [];
+    
+    // ✅ CONDIÇÕES OBRIGATÓRIAS PARA VENDA
+    conditions.push("p.status = 'active'");     // Apenas produtos ativos
+    conditions.push("p.quantity > 0");          // Apenas com estoque
+    
+    // Filtro de busca
+    if (search) {
+      queryParams.push(`%${search}%`);
+      conditions.push(`(p.name ILIKE $${queryParams.length} OR p.code ILIKE $${queryParams.length})`);
+    }
+    
+    const whereClause = `WHERE ${conditions.join(" AND ")}`;
+    
+    const query = `
+      SELECT 
+        p.id,
+        p.code,
+        p.name,
+        p.base_price,
+        p.profit_margin,
+        p.category,
+        p.quantity,
+        p.base_price * ((p.profit_margin / 100) + 1) as final_price
+      FROM moari.products p
+      ${whereClause}
+      ORDER BY p.name ASC
+      LIMIT $${queryParams.length + 1}
+    `;
+    
+    const queryParamsWithLimit = [...queryParams, Number(limit)];
+    
+    console.log('🛒 Buscando produtos para venda:', query);
+    console.log('📋 Parâmetros:', queryParamsWithLimit);
+    
+    const result = await client.query(query, queryParamsWithLimit);
+    
+    console.log(`✅ ${result.rows.length} produtos disponíveis para venda encontrados`);
+    
+    res.json({
+      products: result.rows,
+      total: result.rows.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar produtos para venda:', error);
+    handleDatabaseError(error, res);
+  } finally {
+    client.release();
+  }
+});
 
 router.delete('/products/:id', (async (req, res) => {
   const client = await pool.connect();
