@@ -26,10 +26,10 @@ import LoginPage from "./components/LoginPage";
 import VendasPage from "./components/Vendas/VendasPage";
 import ProductsPage from "./components/Produtos/ProductsPage";
 import FornecedoresPage from "./components/Fornecedores/FornecedoresPage";
-import RelatoriosPage from "./components/RelatoriosPage";
 import SignUpPage from "./components/SignUpPage";
 import Saudacao from "./components/Saudacao";
 import DataAtual from "./components/DataAtual";
+import RelatoriosPage from "./components/Relatorio/RelatoriosPage";
 
 // Componente que controla o acesso às rotas protegidas
 const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({
