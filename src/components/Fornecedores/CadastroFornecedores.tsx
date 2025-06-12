@@ -33,6 +33,36 @@ interface FornecedorFormData {
     endereco: "",
     ultimacompra: null,
   };
+
+  const estadosBrasil = [
+      { uf: 'AC', nome: 'Acre' },
+      { uf: 'AL', nome: 'Alagoas' },
+      { uf: 'AP', nome: 'Amapá' },
+      { uf: 'AM', nome: 'Amazonas' },
+      { uf: 'BA', nome: 'Bahia' },
+      { uf: 'CE', nome: 'Ceará' },
+      { uf: 'DF', nome: 'Distrito Federal' },
+      { uf: 'ES', nome: 'Espírito Santo' },
+      { uf: 'GO', nome: 'Goiás' },
+      { uf: 'MA', nome: 'Maranhão' },
+      { uf: 'MT', nome: 'Mato Grosso' },
+      { uf: 'MS', nome: 'Mato Grosso do Sul' },
+      { uf: 'MG', nome: 'Minas Gerais' },
+      { uf: 'PA', nome: 'Pará' },
+      { uf: 'PB', nome: 'Paraíba' },
+      { uf: 'PR', nome: 'Paraná' },
+      { uf: 'PE', nome: 'Pernambuco' },
+      { uf: 'PI', nome: 'Piauí' },
+      { uf: 'RJ', nome: 'Rio de Janeiro' },
+      { uf: 'RN', nome: 'Rio Grande do Norte' },
+      { uf: 'RS', nome: 'Rio Grande do Sul' },
+      { uf: 'RO', nome: 'Rondônia' },
+      { uf: 'RR', nome: 'Roraima' },
+      { uf: 'SC', nome: 'Santa Catarina' },
+      { uf: 'SP', nome: 'São Paulo' },
+      { uf: 'SE', nome: 'Sergipe' },
+      { uf: 'TO', nome: 'Tocantins' }
+  ];
   
   const CadastroFornecedores: React.FC<CadastroFornecedoresProps> = ({
     isOpen,
@@ -189,7 +219,7 @@ interface FornecedorFormData {
         }
       };
 
- //if (!isOpen) return null;
+ 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-y-auto">
         <div className="bg-white rounded-lg w-full max-w-4xl m-4">
@@ -310,14 +340,20 @@ interface FornecedorFormData {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Estado
                         </label>
-                        <input
-                            type="text"
+                        <select
                             name="estado"
                             value={fornecedor.estado}
                             onChange={handleChange}
-                            className="w-full rounded-lg border border-gray-300 p-2"
+                            className="w-full rounded-lg border border-gray-300 p-2 bg-white"
                             required
-                        />
+                        >
+                            <option value="">Selecione um estado</option>
+                            {estadosBrasil.map((estado) => (
+                                <option key={estado.uf} value={estado.uf}>
+                                    {estado.uf} - {estado.nome}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Endereco*/}
@@ -327,8 +363,8 @@ interface FornecedorFormData {
                         </label>
                         <input
                             type="text"
-                            name="estado"
-                            value={fornecedor.estado}
+                            name="endereco"
+                            value={fornecedor.endereco}
                             onChange={handleChange}
                             className="w-full rounded-lg border border-gray-300 p-2"
                             required
@@ -341,17 +377,17 @@ interface FornecedorFormData {
                         Data da última compra
                       </label>
                       <input
-                        type="datetime-local"
+                        type="date"
                         name="ultimacompra"
                         value={
                           fornecedor.ultimacompra
-                            ? new Date(fornecedor.ultimacompra).toISOString().slice(0, 16) // Converte para o formato esperado
+                            ? new Date(fornecedor.ultimacompra).toISOString().slice(0, 10) // Pega apenas YYYY-MM-DD
                             : ""
                         }
                         onChange={(e) =>
                           setFornecedor((prev) => ({
                             ...prev,
-                            ultimacompra: e.target.value ? new Date(e.target.value) : null, // Converte de volta para Date
+                            ultimacompra: e.target.value ? new Date(e.target.value) : null,
                           }))
                         }
                         className="w-full rounded-lg border border-gray-300 p-2"

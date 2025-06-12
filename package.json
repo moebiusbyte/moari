@@ -10,6 +10,7 @@
   "main": "src/index.tsx",
   "dependencies": {
     "@neondatabase/serverless": "0.10.4",
+    "@octokit/rest": "^22.0.0",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-slot": "^1.0.2",
     "@tailwindcss/forms": "0.5.10",

@@ -5,10 +5,13 @@ import {
   Edit,
   Trash2,
   ArrowLeft,
-  ArrowRight } from "lucide-react";
+  ArrowRight,
+  Eye  // ← NOVO ÍCONE
+} from "lucide-react";
 import CadastroProdutos from "./CadastroProdutos";
 import EditProductModal from './EditProductModal';
 import DeleteProductModal from './DeleteProductModal';
+import ViewProductModal from './ViewProductModal';  // ← NOVO IMPORT
 import api from "../../../server/api/axiosConfig";
 import type { Product } from "../../types/product";
 import type { Supplier } from "../../types/supplier";
@@ -17,6 +20,7 @@ const ProductsPage = () => {
   // Estados para modais
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);  // ← NOVO ESTADO
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -56,116 +60,95 @@ const ProductsPage = () => {
     produtosConsignados: 0
   });
 
- // SUBSTITUIR a função fetchProducts por esta versão única e corrigida:
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: "10",
+        search: searchTerm,
+        orderBy: ordenacao.campo,
+        orderDirection: ordenacao.ordem,
+        category: filtroAvancado.categoria,
+        tempoestoque: filtroAvancado.tempoEstoque,
+        fstatus: filtroAvancado.status,
+        ffornecedor: filtroAvancado.fornecedor
+      });
 
-const fetchProducts = async () => {
-  try {
-    setLoading(true);
-    
-    // 🔍 DEBUG: Estado atual dos filtros
-    console.log('\n🚀 === DEBUG FILTROS ===');
-    console.log('Estado filtroAvancado:', JSON.stringify(filtroAvancado, null, 2));
-    console.log('Status selecionado:', filtroAvancado.status);
-    console.log('Tipo do status:', typeof filtroAvancado.status);
-    console.log('Status é vazio?', filtroAvancado.status === '');
-    console.log('========================\n');
-    
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: "10",
-      search: searchTerm,
-      orderBy: ordenacao.campo,
-      orderDirection: ordenacao.ordem,
-      category: filtroAvancado.categoria,
-      tempoestoque: filtroAvancado.tempoEstoque,
-      fstatus: filtroAvancado.status,
-      ffornecedor: filtroAvancado.fornecedor
-    });
-
-    // 🔍 DEBUG: Parâmetros sendo enviados
-    console.log('📤 Parâmetros enviados para a API:', {
-      page: page.toString(),
-      limit: "10", 
-      search: searchTerm,
-      orderBy: ordenacao.campo,
-      orderDirection: ordenacao.ordem,
-      category: filtroAvancado.categoria,
-      tempoestoque: filtroAvancado.tempoEstoque,
-      fstatus: filtroAvancado.status,
-      ffornecedor: filtroAvancado.fornecedor
-    });
-
-    // 🔍 DEBUG: URL completa sendo chamada
-    const fullUrl = `/products?${params}`;
-    console.log('🌐 URL completa:', fullUrl);
-    console.log('🔗 Parâmetros na URL:', params.toString());
-  
-    const response = await api.get(fullUrl);
-    
-    // 🔍 DEBUG: Resposta da API
-    console.log('\n📥 === RESPOSTA DA API ===');
-    console.log('Total de produtos retornados:', response.data.products?.length);
-    console.log('Estatísticas recebidas:', response.data.statistics);
-    console.log('Total filtrado:', response.data.total);
-    
-    // Verificar se algum produto foi retornado
-    if (response.data.products && response.data.products.length > 0) {
-      console.log('📦 Primeiro produto retornado:', response.data.products[0]);
-      console.log('📊 Status dos produtos retornados:', 
-        response.data.products.map(p => ({ id: p.id, name: p.name, status: p.status }))
-      );
-    }
-    console.log('==========================\n');
-    
-    // Verifica se a resposta tem a estrutura esperada
-    if (response.data && response.data.products) {
-      setProducts(response.data.products);
-      setTotalPages(Math.ceil(response.data.total / 10));
-      if (response.data.statistics) {
-        console.log('✅ Atualizando estatísticas:', response.data.statistics);
-        setEstatisticas(response.data.statistics);
+      const fullUrl = `/products?${params}`;
+      
+      // 🔍 DEBUG: Log da URL e parâmetros
+      console.log('\n🚀 === FRONTEND DEBUG ===');
+      console.log('🔗 URL completa:', fullUrl);
+      console.log('🔍 Search term:', searchTerm);
+      console.log('📋 Todos os parâmetros:', Object.fromEntries(params));
+      console.log('========================\n');
+      
+      const response = await api.get(fullUrl);
+      
+      // 🔍 DEBUG: Log da resposta
+      console.log('\n📦 === RESPONSE DEBUG ===');
+      console.log('📊 Status:', response.status);
+      console.log('📋 Data structure:', Object.keys(response.data));
+      if (response.data.products) {
+        console.log('🎯 Products found:', response.data.products.length);
+        console.log('📝 First product:', response.data.products[0]);
       }
-    } else {
-      console.error("Resposta da API em formato inesperado:", response.data);
+      console.log('=========================\n');
+      
+      // Verifica se a resposta tem a estrutura esperada
+      if (response.data && response.data.products) {
+        setProducts(response.data.products);
+        setTotalPages(Math.ceil(response.data.total / 10));
+        if (response.data.statistics) {
+          setEstatisticas(response.data.statistics);
+        }
+      } else {
+        console.error("Resposta da API em formato inesperado:", response.data);
+        setProducts([]);
+        setTotalPages(0);
+      }
+    } catch (error) {
+      console.error("❌ Erro ao buscar produtos:", error);
+      
+      // 🔍 DEBUG: Log detalhado do erro
+      if (error.response) {
+        console.log('📊 Error status:', error.response.status);
+        console.log('📋 Error data:', error.response.data);
+      }
+      
       setProducts([]);
       setTotalPages(0);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Erro ao buscar produtos:", error);
-    setProducts([]);
-    setTotalPages(0);
-  } finally {
-    setLoading(false);
-  }
-};
-    
-// Função para buscar fornecedores para o filtro
-const fetchSuppliers = async () => {
-  try {
-    const response = await api.get("/suppliers"); // Assuming this is your endpoint
-    // Assuming the backend returns an array of suppliers directly, or in a 'suppliers' property
-    console.log("API response for suppliers:", response.data);
-    const suppliersData = response.data.suppliers || response.data;
-    if (Array.isArray(suppliersData)) { // Check if response.data is an array
-      setSuppliers(suppliersData);
-    } else {
-      console.error("API response for suppliers is not an array:", response.data);
-      setSuppliers([]); // Set to empty array in case of unexpected response
+  };
+      
+  // Função para buscar fornecedores para o filtro
+  const fetchSuppliers = async () => {
+    try {
+      const response = await api.get("/suppliers");
+      const suppliersData = response.data.suppliers || response.data;
+      if (Array.isArray(suppliersData)) {
+        setSuppliers(suppliersData);
+      } else {
+        console.error("API response for suppliers is not an array:", response.data);
+        setSuppliers([]);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar fornecedores:", error);
+      setSuppliers([]);
     }
-  } catch (error) {
-    console.error("Erro ao buscar fornecedores:", error);
-    setSuppliers([]); // Set to empty array in case of error
-  }
-};
+  };
 
   // Atualizar produtos quando mudar página, busca ou filtros
   useEffect(() => {
     console.log('\n🔄 === useEffect TRIGGERED ===');
-    console.log('Page changed:', page);
-    console.log('SearchTerm changed:', searchTerm);
-    console.log('FiltroAvancado changed:', filtroAvancado);
-    console.log('Ordenacao changed:', ordenacao);
-    console.log('Calling fetchProducts...');
+    console.log('📄 Page:', page);
+    console.log('🔍 Search term:', searchTerm);
+    console.log('🎛️ Filtros:', filtroAvancado);
+    console.log('📊 Ordenação:', ordenacao);
     console.log('==============================\n');
     
     fetchProducts();
@@ -181,6 +164,12 @@ const fetchSuppliers = async () => {
     fetchSuppliers();
   }, []);
 
+  // ← NOVO HANDLER PARA VISUALIZAÇÃO
+  const handleViewProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setViewModalOpen(true);
+  };
+
   // Handler para edição de produto
   const handleEditProduct = (product: Product) => {
     setSelectedProduct(product);
@@ -191,147 +180,130 @@ const fetchSuppliers = async () => {
     setIsModalOpen(true);
   };
 
+  const handleUpdateProduct = async (updatedProduct: Partial<Product>, newImages: File[] = []) => {
+    try {
+      const formData = new FormData();
 
-const handleUpdateProduct = async (updatedProduct: Partial<Product>, newImages: File[] = []) => {
-  try {
-    const formData = new FormData();
-
-    // Garantir que temos o ID do produto
-    if (!selectedProduct?.id) {
-      throw new Error('ID do produto não encontrado');
-    }
-
-    console.log('🔍 Updated product data received:', updatedProduct);
-    console.log('🏢 Supplier ID from form:', updatedProduct.supplier_id);
-
-    // Adicionar campos do produto - INCLUINDO supplier_id
-    Object.entries(updatedProduct).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        if (key === 'materials' || key === 'images') {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, value.toString());
-        }
+      // Garantir que temos o ID do produto
+      if (!selectedProduct?.id) {
+        throw new Error('ID do produto não encontrado');
       }
-    });
 
-    // Adicionar novas imagens
-    newImages.forEach((image) => {
-      formData.append('images', image);
-    });
+      console.log('🔍 Updated product data received:', updatedProduct);
+      console.log('🏢 Supplier ID from form:', updatedProduct.supplier_id);
 
-    console.log('📤 FormData being sent to backend:');
-    for (let [key, value] of formData.entries()) {
-      console.log(`${key}:`, value);
+      // Adicionar campos do produto - INCLUINDO supplier_id
+      Object.entries(updatedProduct).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (key === 'materials' || key === 'images') {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, value.toString());
+          }
+        }
+      });
+
+      // Adicionar novas imagens
+      newImages.forEach((image) => {
+        formData.append('images', image);
+      });
+
+      const response = await api.put(`/products/${selectedProduct.id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Atualizar lista de produtos
+      setProducts(prevProducts =>
+        prevProducts.map(p =>
+          p.id.toString() === selectedProduct.id.toString() ? response.data : p
+        )
+      );
+
+      setEditModalOpen(false);
+      setSelectedProduct(null);
+    } catch (error) {
+      console.error('❌ Erro ao atualizar produto:', error);
+      throw error;
     }
+  };
 
-    const response = await api.put(`/products/${selectedProduct.id}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+  // Handler para exclusão de produto
+  const handleDeleteProduct = (productId: string) => {
+    const product = products.find(p => p.id.toString() === productId.toString());
+    if (product) {
+      setSelectedProduct(product);
+      setDeleteModalOpen(true);
+    }
+  };
 
-    console.log('✅ Response from backend:', response.data);
+  // Handler para confirmação de exclusão
+  const handleConfirmDelete = async (productId: string) => {
+    try {
+      await api.delete(`/products/${productId}`);
+      setProducts(prevProducts => prevProducts.filter(p => p.id.toString() !== productId.toString()));
+      setDeleteModalOpen(false);
+      setSelectedProduct(null);
+    } catch (error) {
+      console.error('Erro ao excluir produto:', error);
+    }
+  };
 
-    // Atualizar lista de produtos
-    setProducts(prevProducts =>
-      prevProducts.map(p =>
-        p.id.toString() === selectedProduct.id.toString() ? response.data : p
-      )
-    );
-
-    setEditModalOpen(false);
-    setSelectedProduct(null);
-  } catch (error) {
-    console.error('❌ Erro ao atualizar produto:', error);
-    throw error;
-  }
-};
-
-// Handler para exclusão de produto
-const handleDeleteProduct = (productId: string) => {
-  const product = products.find(p => p.id.toString() === productId.toString());
-  if (product) {
-    setSelectedProduct(product);
-    setDeleteModalOpen(true);
-  }
-};
-
-// Handler para confirmação de exclusão
-const handleConfirmDelete = async (productId: string) => {
-  try {
-    await api.delete(`/products/${productId}`);
-    setProducts(prevProducts => prevProducts.filter(p => p.id.toString() !== productId.toString()));
-    setDeleteModalOpen(false);
-    setSelectedProduct(null);
-  } catch (error) {
-    console.error('Erro ao excluir produto:', error);
-  }
-};
-
- const handleSaveProduto = async (produto: any, imagens: File[]) => {
-  try {
-    console.log('📦 Dados recebidos do formulário:', produto);
-    
-    const formData = new FormData();
-
-    const apiData = {
-      code: produto.codigo,
-      name: produto.nome,
-      category: produto.categoria,
-      format: produto.formato,
-      material_type: produto.tipoMaterial,
-      usage_mode: produto.modoUso,
-      size: produto.tamanho,
-      origin: produto.origem,
-      warranty: produto.garantia,
-      base_price: produto.precoBase,
-      profit_margin: produto.margemLucro,
-      description: produto.descricao,
-      materials: produto.materiaisComponentes,
-      supplier_id: produto.fornecedor,
+  const handleSaveProduto = async (produto: any, imagens: File[]) => {
+    try {
+      console.log('📦 Dados recebidos do formulário:', produto);
       
-      // CAMPOS NOVOS ADICIONADOS:
-      buy_date: produto.dataCompra || null,           // dataCompra -> buy_date
-      quantity: parseInt(produto.quantidade) || 1     // quantidade -> quantity (convertido para int)
-    };
+      const formData = new FormData();
 
-    console.log('🔄 Dados mapeados para o backend:', apiData);
+      const apiData = {
+        code: produto.codigo,
+        name: produto.nome,
+        category: produto.categoria,
+        format: produto.formato,
+        material_type: produto.tipoMaterial,
+        usage_mode: produto.modoUso,
+        size: produto.tamanho,
+        origin: produto.origem,
+        warranty: produto.garantia,
+        base_price: produto.precoBase,
+        profit_margin: produto.margemLucro,
+        description: produto.descricao,
+        materials: produto.materiaisComponentes,
+        supplier_id: produto.fornecedor,
+        buy_date: produto.dataCompra || null,
+        quantity: parseInt(produto.quantidade) || 1
+      };
 
-    Object.entries(apiData).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        if (key === 'materials') {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, value.toString());
+      Object.entries(apiData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (key === 'materials') {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, value.toString());
+          }
         }
-      }
-    });
+      });
 
-    imagens.forEach((imagem) => {
-      formData.append('images', imagem);
-    });
+      imagens.forEach((imagem) => {
+        formData.append('images', imagem);
+      });
 
-    console.log('📤 FormData sendo enviado:');
-    for (let [key, value] of formData.entries()) {
-      console.log(`${key}:`, value);
+      const response = await api.post("/products", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      console.log('✅ Produto salvo com sucesso:', response.data);
+
+      await fetchProducts();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("❌ Erro ao salvar produto:", error);
+      throw error;
     }
-
-    const response = await api.post("/products", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    console.log('✅ Produto salvo com sucesso:', response.data);
-
-    await fetchProducts();
-    setIsModalOpen(false);
-  } catch (error) {
-    console.error("❌ Erro ao salvar produto:", error);
-    throw error; // Re-throw para que o modal possa mostrar o erro
-  }
-};
+  };
 
   return (
     <div className="p-6">
@@ -375,13 +347,15 @@ const handleConfirmDelete = async (productId: string) => {
         <div className="relative">
           <input
             type="text"
-            placeholder="Buscar produtos..."
+            placeholder="Buscar por nome, código ou material..."
             className="w-full pl-10 pr-4 py-2 border rounded-lg"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}/>
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
           <Search className="absolute left-3 top-2.5 text-gray-400" size={20}/>
         </div>
 
+        {/* Resto dos filtros permanecem iguais */}
         <select
           value={filtroAvancado.categoria}
           onChange={(e) =>
@@ -428,18 +402,7 @@ const handleConfirmDelete = async (productId: string) => {
           value={filtroAvancado.status}
           onChange={(e) => {
             const newStatus = e.target.value;
-            console.log('\n🎯 === STATUS FILTER CHANGE ===');
-            console.log('Valor anterior:', filtroAvancado.status);
-            console.log('Valor novo:', newStatus);
-            console.log('Tipo do valor:', typeof newStatus);
-            console.log('Estado filtroAvancado antes:', filtroAvancado);
-            
-            setFiltroAvancado(prev => {
-              const newState = {...prev, status: newStatus};
-              console.log('Estado filtroAvancado depois:', newState);
-              console.log('===============================\n');
-              return newState;
-            });
+            setFiltroAvancado(prev => ({...prev, status: newStatus}));
           }}
           className="border rounded-lg px-6 py-2">
           <option value="">Status</option>
@@ -457,9 +420,11 @@ const handleConfirmDelete = async (productId: string) => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Materiais</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço Base</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Margem</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço Final</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estoque</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
               </tr>
@@ -468,27 +433,103 @@ const handleConfirmDelete = async (productId: string) => {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-4 text-center">
+                  <td colSpan={10} className="px-6 py-4 text-center">
                     Carregando...
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-4 text-center">
-                    Nenhum produto encontrado
+                  <td colSpan={10} className="px-6 py-4 text-center">
+                    {searchTerm ? 
+                      `Nenhum produto encontrado para "${searchTerm}"` : 
+                      "Nenhum produto encontrado"
+                    }
                   </td>
                 </tr>
               ) : (
                 products.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50">
+                  <tr key={product.id} className={`hover:bg-gray-50 ${
+                    product.found_by_material ? 'bg-blue-50 border-l-4 border-blue-400' : ''
+                  }`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {product.code}
+                      <div className="flex items-center gap-2">
+                        {product.code}
+                        {product.found_by_material && (
+                          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full font-medium">
+                            Material
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{product.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">R$ {Number(product.base_price).toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">% {Number(product.profit_margin).toFixed(2)}</td>
-                   <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">R$ {(Number(product.base_price) * ((Number(product.profit_margin) / 100) + 1)).toFixed(2)}</td>
+                    
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {product.name}
+                    </td>
+                    
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {product.category}
+                    </td>
+                    
+                    {/* NOVA COLUNA DE MATERIAIS */}
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      <div className="flex flex-wrap gap-1 max-w-48">
+                        {product.materials && product.materials.length > 0 ? (
+                          product.materials.slice(0, 3).map((material, index) => (
+                            <span
+                              key={index}
+                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                searchTerm && material.toLowerCase().includes(searchTerm.toLowerCase())
+                                  ? 'bg-yellow-100 text-yellow-800 ring-2 ring-yellow-300'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              {material}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 text-xs">Sem materiais</span>
+                        )}
+                        {product.materials && product.materials.length > 3 && (
+                          <span className="text-xs text-gray-500">
+                            +{product.materials.length - 3} mais
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-900">
+                      R$ {Number(product.base_price).toFixed(2)}
+                    </td>
+                    
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                      % {Number(product.profit_margin).toFixed(2)}
+                    </td>
+                    
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                      R$ {(Number(product.base_price) * ((Number(product.profit_margin) / 100) + 1)).toFixed(2)}
+                    </td>
+                    
+                    {/* COLUNA DE ESTOQUE */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex flex-col gap-1">
+                        <span className={`font-medium ${
+                          Number(product.quantity) <= 0
+                            ? "text-red-600"
+                            : Number(product.quantity) <= 5
+                            ? "text-yellow-600"
+                            : "text-green-600"
+                        }`}>
+                          {product.quantity || 0}
+                        </span>
+                        {Number(product.quantity) <= 0 && (
+                          <span className="text-xs text-red-500 font-medium">SEM ESTOQUE</span>
+                        )}
+                        {Number(product.quantity) > 0 && Number(product.quantity) <= 5 && (
+                          <span className="text-xs text-yellow-500 font-medium">ESTOQUE BAIXO</span>
+                        )}
+                      </div>
+                    </td>
+
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -511,7 +552,15 @@ const handleConfirmDelete = async (productId: string) => {
                         )}
                       </div>
                     </td>
+                    
+                    {/* COLUNA DE AÇÕES */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        className="text-gray-600 hover:text-gray-900 mr-3"
+                        onClick={() => handleViewProduct(product)}
+                        title="Visualizar Produto">
+                        <Eye size={18} />
+                      </button>
                       <button
                         className="text-blue-600 hover:text-blue-900 mr-3"
                         onClick={() => handleEditProduct(product)}
@@ -519,7 +568,7 @@ const handleConfirmDelete = async (productId: string) => {
                         <Edit size={18} />
                       </button>
                       <button
-                        className="text-red-600 hover:text-red-900 mr-3"
+                        className="text-red-600 hover:text-red-900"
                         onClick={() => handleDeleteProduct(product.id)}
                         title="Excluir Produto">
                         <Trash2 size={18} />
@@ -563,12 +612,23 @@ const handleConfirmDelete = async (productId: string) => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* MODAIS */}
       {isModalOpen && (
         <CadastroProdutos
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveProduto}/>
+      )}
+
+      {selectedProduct && viewModalOpen && (
+        <ViewProductModal
+          isOpen={viewModalOpen}
+          onClose={() => {
+            setViewModalOpen(false);
+            setSelectedProduct(null);
+          }}
+          product={selectedProduct}
+        />
       )}
 
       {selectedProduct && editModalOpen && (
@@ -580,7 +640,7 @@ const handleConfirmDelete = async (productId: string) => {
           }}
           onSave={(formData, newImages) => handleUpdateProduct(formData, newImages)}
           product={selectedProduct}
-          suppliers={suppliers} // ← ADICIONAR ESTA LINHA
+          suppliers={suppliers}
         />
       )}
 

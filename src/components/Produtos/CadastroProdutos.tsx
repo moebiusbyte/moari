@@ -9,7 +9,6 @@ interface ProdutoFormData {
   nome: string;
   categoria: string;
   formato: string;
-  qualidade: string;
   tipoMaterial: string;
   modoUso: string;
   tamanho: string;
@@ -35,7 +34,6 @@ const produtoInicial: ProdutoFormData = {
   nome: "",
   categoria: "",
   formato: "",
-  qualidade: "",
   tipoMaterial: "",
   modoUso: "",
   tamanho: "",
@@ -460,22 +458,6 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
 
             {/* Características */}
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Qualidade
-                </label>
-                <select
-                  name="qualidade"
-                  value={produto.qualidade}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 p-2"
-                >
-                  <option value="">Selecione...</option>
-                  <option value="alta">Alta</option>
-                  <option value="media">Média</option>
-                  <option value="baixa">Baixa</option>
-                </select>
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
