@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Upload } from 'lucide-react';
 
 const FotoPerfil = () => {
-  const [fotoPerfil, setFotoPerfil] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // Carrega a foto salva ao iniciar o componente
@@ -14,12 +14,13 @@ const FotoPerfil = () => {
     }
   }, []);
 
-  const handleImageUpload = (event) => {
-    const file = event.target.files[0];
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result;
+      reader.onloadend = (e: ProgressEvent<FileReader>) => {
+        if (!e.target) return;
+        const base64String = e.target.result as string;
         setFotoPerfil(base64String);
         setPreviewUrl(base64String);
         localStorage.setItem('fotoPerfil', base64String);

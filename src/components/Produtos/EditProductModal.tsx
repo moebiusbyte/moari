@@ -209,24 +209,7 @@ const handleChange = (
                 Associe este produto a um fornecedor existente
               </span>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Qualidade
-              </label>
-              <select
-                name="quality"
-                value={formData.quality || ''}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-gray-300 p-2"
-              >
-                <option value="">Selecione...</option>
-                <option value="alta">Alta</option>
-                <option value="media">Média</option>
-                <option value="baixa">Baixa</option>
-              </select>
-            </div>
-
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Preço Base

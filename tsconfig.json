@@ -16,11 +16,13 @@
         "strict": true,
         "moduleResolution": "node",
         "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
         "lib": [
             "dom",
             "es2015"
         ],
         "jsx": "react-jsx",
-        "module": "esnext"
+        "module": "esnext",
+        "target": "es2020"
     }
 }

@@ -1,8 +1,8 @@
 import axios from "axios";
 // Função para obter a URL base correta
-var getBaseUrl = function () {
-    var currentUrl = window.location.origin;
-    var baseUrl; // Declare baseUrl here
+const getBaseUrl = () => {
+    const currentUrl = window.location.origin;
+    let baseUrl; // Declare baseUrl here
     // Se estamos no CodeSandbox, ajusta a URL
     if (currentUrl.includes("csb.app")) {
         baseUrl = currentUrl.replace("-5173", "-3001") + "/api";
@@ -13,12 +13,12 @@ var getBaseUrl = function () {
         baseUrl = import.meta.env.VITE_API_URL;
     }
     else {
-        baseUrl = "".concat(window.location.protocol, "//").concat(window.location.hostname, ":3001/api");
+        baseUrl = `${window.location.protocol}//${window.location.hostname}:3001/api`;
     }
     console.log("Generated Base URL:", baseUrl);
     return baseUrl;
 };
-var api = axios.create({
+const api = axios.create({
     baseURL: getBaseUrl(),
     timeout: 10000, // 10 segundos
     headers: {
@@ -27,7 +27,7 @@ var api = axios.create({
     withCredentials: true, // Importante para CORS
 });
 // Interceptor para logs de debug
-api.interceptors.request.use(function (request) {
+api.interceptors.request.use((request) => {
     console.log("Request:", {
         url: request.url,
         method: request.method,
@@ -36,7 +36,7 @@ api.interceptors.request.use(function (request) {
     });
     return request;
 });
-api.interceptors.response.use(function (response) { return response; }, function (error) {
+api.interceptors.response.use((response) => response, (error) => {
     console.error("API Error:", error.message);
     if (error.response) {
         console.error("API Response Status:", error.response.status);
@@ -44,19 +44,19 @@ api.interceptors.response.use(function (response) { return response; }, function
     }
     return Promise.reject(error);
 });
-var combinacoes = []; // Certifique-se de que este array esteja definido em algum lugar do seu código
-var totalArquivos = 50;
-var tamanhoPorArquivo = Math.ceil(combinacoes.length / totalArquivos);
-for (var i = 0; i < totalArquivos; i++) {
-    var inicio = i * tamanhoPorArquivo;
-    var fim = inicio + tamanhoPorArquivo;
-    var parte = combinacoes.slice(inicio, fim);
-    var blob = new Blob([parte.join('\n')], { type: 'text/plain' });
-    var url = URL.createObjectURL(blob);
+const combinacoes = []; // Certifique-se de que este array esteja definido em algum lugar do seu código
+const totalArquivos = 50;
+const tamanhoPorArquivo = Math.ceil(combinacoes.length / totalArquivos);
+for (let i = 0; i < totalArquivos; i++) {
+    const inicio = i * tamanhoPorArquivo;
+    const fim = inicio + tamanhoPorArquivo;
+    const parte = combinacoes.slice(inicio, fim);
+    const blob = new Blob([parte.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
     // Cria um link para download automático
-    var a = document.createElement('a');
+    const a = document.createElement('a');
     a.href = url;
-    a.download = "combinacoes_parte_".concat(i + 1, ".txt");
+    a.download = `combinacoes_parte_${i + 1}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

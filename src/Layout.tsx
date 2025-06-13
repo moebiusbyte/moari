@@ -27,7 +27,6 @@ import VendasPage from "./components/Vendas/VendasPage";
 import ProductsPage from "./components/Produtos/ProductsPage";
 import FornecedoresPage from "./components/Fornecedores/FornecedoresPage";
 import SignUpPage from "./components/SignUpPage";
-import Saudacao from "./components/Saudacao";
 import DataAtual from "./components/DataAtual";
 import RelatoriosPage from "./components/Relatorio/RelatoriosPage";
 
@@ -55,21 +54,6 @@ const Dashboard = () => (
 
 // Componentes das páginas
 const Configuracoes = () => <div>Página de Configurações</div>;
-
-//salvar FotoPerfil
-const handleImageUpload = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result;
-      setFotoPerfil(base64String);
-      setPreviewUrl(base64String);
-      localStorage.setItem('fotoPerfil', base64String);
-    };
-    reader.readAsDataURL(file);
-  }
-};
 
 // Componente principal do Layout
 const Layout = () => {

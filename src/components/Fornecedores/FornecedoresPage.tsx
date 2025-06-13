@@ -26,6 +26,16 @@ interface Fornecedor {
   ultima_compra: string | null;
 }
 
+interface FornecedorFormData {
+  nome: string;
+  contato: string;
+  telefone: string;
+  email: string;
+  cidade: string;
+  estado: string;
+  endereco: string;
+}
+
 const FornecedoresPage = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,7 +51,7 @@ const FornecedoresPage = () => {
       const response = await api.get("/suppliers", {
         params: { search: searchTerm },
       });
-      setFornecedores(response.data);
+      setFornecedores(response.data as Fornecedor[]);
     } catch (error) {
       console.error("Erro ao buscar fornecedores:", error);
     } finally {
@@ -89,7 +99,7 @@ const FornecedoresPage = () => {
   }, [searchTerm]);
 
   // Função para salvar um novo fornecedor
-  const handleSaveFornecedor = async (fornecedor: Fornecedor) => {
+  const handleSaveFornecedor = async (fornecedor: FornecedorFormData, imagens: File[]) => {
     try {
       await api.post("/suppliers", fornecedor);
       fetchFornecedores(); // Atualiza a lista após salvar

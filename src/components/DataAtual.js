@@ -1,25 +1,25 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
-var DataAtual = function () {
+const DataAtual = () => {
     // Estado para armazenar a data/hora atual
-    var _a = useState(new Date()), dateTime = _a[0], setDateTime = _a[1];
-    useEffect(function () {
+    const [dateTime, setDateTime] = useState(new Date());
+    useEffect(() => {
         // Atualiza a cada segundo
-        var timer = setInterval(function () {
+        const timer = setInterval(() => {
             setDateTime(new Date());
         }, 1000);
         // Limpa o intervalo quando o componente é desmontado
-        return function () { return clearInterval(timer); };
+        return () => clearInterval(timer);
     }, []);
     // Opções de formatação para a data
-    var dateOptions = {
+    const dateOptions = {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric'
     };
     // Opções de formatação para a hora
-    var timeOptions = {
+    const timeOptions = {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",

@@ -18,4 +18,7 @@ export interface Product {
   has_quality_issues: boolean;
   created_at: string;
   status: 'active' | 'inactive' | 'consigned';
+  supplier_id?: string;
+  quantity: number;
+  buy_date?: string;
 }
