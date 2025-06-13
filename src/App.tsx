@@ -7,13 +7,15 @@ import Layout from "./Layout";
 
 export default function App() {
   return (
-    // AuthProvider envolve toda a aplicação para que o estado de autenticação
-    // esteja disponível em todos os componentes
-    <AuthProvider>
-      {/* BrowserRouter deve estar fora do Layout mas dentro do AuthProvider */}
-      <BrowserRouter>
-        <Layout />
-      </BrowserRouter>
-    </AuthProvider>
+    <div>
+      <div className="bg-red-500 p-8 text-white text-center text-xl font-bold">
+        🎉 TESTE TAILWIND 🎉
+      </div>
+      <AuthProvider>
+        <BrowserRouter>
+          <Layout />
+        </BrowserRouter>
+      </AuthProvider>
+    </div>
   );
 }

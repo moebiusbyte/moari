@@ -1,7 +1,8 @@
 import express, { Router, Request, Response, RequestHandler } from "express";
 import { ParamsDictionary } from 'express-serve-static-core';
-import { Pool } from "pg";
 import dotenv from "dotenv";
+import pkg from "pg";
+const { Pool } = pkg;
 
 dotenv.config();
 

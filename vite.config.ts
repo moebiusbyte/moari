@@ -9,6 +9,13 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    // Adiciona as flags do React Router para resolver os warnings
+    __REACT_ROUTER_FUTURE_FLAGS__: JSON.stringify({
+      v7_startTransition: true,
+      v7_relativeSplatPath: true
+    })
+  },
   server: {
     host: true,
     allowedHosts: ["v3rks3-5173.csb.app", ".csb.app", "localhost", "127.0.0.1"],

@@ -42,7 +42,7 @@ const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({
 const Dashboard = () => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {[1, 2, 3].map((card) => (
-      <div key={card} className="p-6 bg-white rounded-lg shadow-sm">
+      <div key={card} className="dashboard-card fade-in">
         <h3 className="text-lg font-semibold mb-2">Card {card}</h3>
         <p className="text-gray-600">
           Conteúdo exemplo para demonstração do layout
@@ -93,28 +93,32 @@ const Layout = () => {
 
   // Layout principal da aplicação (mostrado apenas para usuários autenticados)
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Cabeçalho da aplicação */}
-      <header className="bg-white shadow-sm">
-        <div className="flex items-center justify-between px-4 py-1">
+      <header className="bg-white shadow-lg border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center">
             {/* Botão para controlar a visibilidade da sidebar */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-1 rounded-lg hover:bg-red-300">{/* Alteração de fundo 3 barras*/}
-              {isSidebarOpen ? <X size={36} /> : <Menu size={36} />}{/* Definição tamanho 3 barras e X ao lado Moari*/}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             {/* Logo/Nome da aplicação */}
-            <h1 className="ml-4 text-4xl font-semibold text-pink-500">MoAri</h1>
+            <h1 className="ml-4 text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500">
+              MoAri
+            </h1>
           </div>
-          {/*Relogio*/}
+          
+          {/* Relógio */}
           <div className="flex items-center">
             <DataAtual />
           </div>
+          
           {/* Área do perfil do usuário */}
-          <div className="display-flex items-center space-x-1">
+          <div className="flex items-center space-x-4">
             <div className="flex items-center">
-              <span className="mr-4 text-lg-2 text-gray-900">{/*user.name*/}</span>
+              <span className="text-gray-700 font-medium">{user?.name || "Usuário"}</span>
             </div>
           </div>
         </div>
@@ -125,59 +129,62 @@ const Layout = () => {
         {/* Sidebar com menu de navegação */}
         <aside
           className={`${
-            isSidebarOpen ? "w-48" : "w-20"
-          } transition-width duration-300 ease-in-out bg-white shadow-sm min-h-screen`}
+            isSidebarOpen ? "w-64" : "w-16"
+          } transition-all duration-300 ease-in-out bg-white shadow-lg min-h-screen border-r border-gray-200`}
         >
-          <nav className="mt-0">
+          <nav className="mt-4">
             {/* Links de navegação */}
             {menuItems.map((item, index) => (
               <Link
                 key={index}
                 to={item.path}
-                className="flex items-center px-5 py-3 text-gray-700 hover:bg-blue-100 hover:text-blue-500">{/* Alteração de cor MENU*/}
-                <item.icon size={28} />
-                {isSidebarOpen && <span className="ml-4">{item.text}</span>}
+                className="sidebar-link">
+                <item.icon size={20} />
+                {isSidebarOpen && <span className="ml-3 font-medium">{item.text}</span>}
               </Link>
             ))}
+            
             {/* Botão de logout */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center px-5 py-3 mt-12 text-red-500 hover:bg-red-100">
-              <LogOut size={28} />
+              className="w-full flex items-center px-6 py-3 mt-8 text-red-600 hover:bg-red-50 transition-colors duration-200 rounded-lg mx-2">
+              <LogOut size={20} />
               {isSidebarOpen && <span className="ml-3 font-semibold">Sair</span>}
             </button>
           </nav>
         </aside>
 
         {/* Área principal de conteúdo */}
-        <main className="flex-1 p-6">
-          <Routes>
-            {/* Rota padrão redireciona para o dashboard */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <main className="flex-1 p-6 bg-gray-50">
+          <div className="max-w-7xl mx-auto">
+            <Routes>
+              {/* Rota padrão redireciona para o dashboard */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-            {/* Rotas protegidas da aplicação */}
-            <Route
-              path="/dashboard"
-              element={<PrivateRoute element={<Dashboard />} />}/>
-            <Route
-              path="/produtos"
-              element={<PrivateRoute element={<ProductsPage />} />}/>
-            <Route
-              path="/fornecedores"
-              element={<PrivateRoute element={<FornecedoresPage />} />}/>
-            <Route
-              path="/vendas"
-              element={<PrivateRoute element={<VendasPage />} />}/>
-            <Route
-              path="/relatorios"
-              element={<PrivateRoute element={<RelatoriosPage />} />}/>
-            <Route
-              path="/config"
-              element={<PrivateRoute element={<SignUpPage />} />}/>
+              {/* Rotas protegidas da aplicação */}
+              <Route
+                path="/dashboard"
+                element={<PrivateRoute element={<Dashboard />} />}/>
+              <Route
+                path="/produtos"
+                element={<PrivateRoute element={<ProductsPage />} />}/>
+              <Route
+                path="/fornecedores"
+                element={<PrivateRoute element={<FornecedoresPage />} />}/>
+              <Route
+                path="/vendas"
+                element={<PrivateRoute element={<VendasPage />} />}/>
+              <Route
+                path="/relatorios"
+                element={<PrivateRoute element={<RelatoriosPage />} />}/>
+              <Route
+                path="/config"
+                element={<PrivateRoute element={<SignUpPage />} />}/>
 
-            {/* Rota de login */}
-            <Route path="/login" element={<LoginPage />} />
-          </Routes>
+              {/* Rota de login */}
+              <Route path="/login" element={<LoginPage />} />
+            </Routes>
+          </div>
         </main>
       </div>
     </div>

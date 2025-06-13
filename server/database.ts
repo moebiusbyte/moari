@@ -1,8 +1,9 @@
-import { Pool } from 'pg';
 import path from 'path';
 import dotenv from 'dotenv';
+import pkg from 'pg';
+const { Pool } = pkg;
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config();
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL não está definida');

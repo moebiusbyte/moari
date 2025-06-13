@@ -1,6 +1,7 @@
 {
   "name": "react-typescript",
   "version": "1.0.0",
+  "type": "commonjs",
   "description": "React and TypeScript example starter project",
   "keywords": [
     "typescript",
@@ -13,7 +14,6 @@
     "@octokit/rest": "^22.0.0",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-slot": "^1.0.2",
-    "@tailwindcss/forms": "0.5.10",
     "@types/bcrypt": "5.0.2",
     "@types/bcryptjs": "2.4.6",
     "@types/cors": "2.8.17",
@@ -37,14 +37,11 @@
     "react-router-dom": "^6.22.0",
     "recharts": "2.15.1",
     "scheduler": "^0.20.2",
-    "tailwind-material-3": "2.0.1",
     "tailwind-merge": "^3.0.1",
-    "tailwindcss-animate": "^1.0.7",
     "ts-node": "10.9.2"
   },
   "devDependencies": {
     "@shadcn/ui": "^0.0.4",
-    "@tailwindcss/postcss": "^4.1.10",
     "@types/lodash": "^4.17.17",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.13.1",
@@ -56,7 +53,7 @@
     "autoprefixer": "^10.4.21",
     "lucide-react": "^0.475.0",
     "postcss": "^8.5.5",
-    "tailwindcss": "^4.1.10",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "uuid": "^11.0.5",
     "vite": "^5.0.11"

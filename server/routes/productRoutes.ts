@@ -1,10 +1,11 @@
 import express, { Router, Request, Response, RequestHandler } from "express";
 import { ParamsDictionary } from 'express-serve-static-core';
-import { Pool } from "pg";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 import { Octokit } from "@octokit/rest";
+import pkg from "pg";
+const { Pool } = pkg;
 
 dotenv.config();
 

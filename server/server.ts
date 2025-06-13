@@ -3,11 +3,11 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
-import productsRoutes from './routes/productRoutes';
-import fornecedoresRoutes from './routes/fornecedoresRoutes';
-import salesRoutes from './routes/VendasRoutes'; 
-import relatoriosRoutes from './routes/relatoriosRoutes';
-import { pool, setupDatabase } from '../database';
+import productsRoutes from './routes/productRoutes.ts';
+import fornecedoresRoutes from './routes/fornecedoresRoutes.ts';
+import salesRoutes from './routes/vendasRoutes.ts'; 
+import relatoriosRoutes from './routes/relatoriosRoutes.ts';
+import { pool, setupDatabase } from './database.ts';
 
 dotenv.config();
 
@@ -275,3 +275,5 @@ async function startServer() {
 
 // Inicia o servidor
 startServer();
+
+export default app;
