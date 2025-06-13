@@ -30,7 +30,7 @@ const FormularioVenda = ({ onClose, onSave }) => {
             console.log('🔍 Buscando produtos para venda (apenas com estoque)');
             const response = await api.get(`/products-for-sale?${params}`);
             if (response.data && response.data.products) {
-                const availableProducts = response.data.products.map(product => ({
+                const availableProducts = response.data.products.map((product) => ({
                     ...product,
                     final_price: product.final_price || Number(product.base_price) * ((Number(product.profit_margin) / 100) + 1)
                 }));
@@ -53,7 +53,7 @@ const FormularioVenda = ({ onClose, onSave }) => {
                 const fallbackResponse = await api.get(`/products?${params}`);
                 if (fallbackResponse.data && fallbackResponse.data.products) {
                     const productsWithStock = fallbackResponse.data.products
-                        .filter(product => {
+                        .filter((product) => {
                         const hasStock = product.quantity > 0;
                         const isActive = product.status === 'active';
                         if (!hasStock) {
@@ -61,7 +61,7 @@ const FormularioVenda = ({ onClose, onSave }) => {
                         }
                         return hasStock && isActive;
                     })
-                        .map(product => ({
+                        .map((product) => ({
                         ...product,
                         final_price: Number(product.base_price) * ((Number(product.profit_margin) / 100) + 1)
                     }));

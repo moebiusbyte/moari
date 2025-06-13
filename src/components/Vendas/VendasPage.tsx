@@ -47,7 +47,15 @@ interface Sale {
 }
 
 // Modal Component
-const Modal = ({ isOpen, onClose, title, children, size = "max-w-xl" }) => {
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  size?: string;
+}
+
+const Modal = ({ isOpen, onClose, title, children, size = "max-w-xl" }: ModalProps) => {
   if (!isOpen) return null;
 
   return (

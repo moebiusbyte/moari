@@ -63,7 +63,13 @@ const FormularioVenda: React.FC<FormularioVendaProps> = ({ onClose, onSave }) =>
       const response = await api.get(`/products-for-sale?${params}`);
       
       if (response.data && response.data.products) {
-        const availableProducts = response.data.products.map(product => ({
+        interface ApiProduct {
+          final_price?: number;
+          base_price: number;
+          profit_margin: number;
+        }
+
+        const availableProducts: Product[] = response.data.products.map((product: ApiProduct) => ({
           ...product,
           final_price: product.final_price || Number(product.base_price) * ((Number(product.profit_margin) / 100) + 1)
         }));
@@ -89,18 +95,30 @@ const FormularioVenda: React.FC<FormularioVendaProps> = ({ onClose, onSave }) =>
         const fallbackResponse = await api.get(`/products?${params}`);
         
         if (fallbackResponse.data && fallbackResponse.data.products) {
-          const productsWithStock = fallbackResponse.data.products
-            .filter(product => {
+            interface FallbackProduct {
+            name: string;
+            quantity: number;
+            status: string;
+            base_price: number;
+            profit_margin: number;
+            }
+
+            interface ProductWithFinalPrice extends Product {
+            final_price: number;
+            }
+
+            const productsWithStock: ProductWithFinalPrice[] = fallbackResponse.data.products
+            .filter((product: FallbackProduct) => {
               const hasStock = product.quantity > 0;
               const isActive = product.status === 'active';
               
               if (!hasStock) {
-                console.log(`⚠️ Produto ${product.name} excluído: sem estoque`);
+              console.log(`⚠️ Produto ${product.name} excluído: sem estoque`);
               }
               
               return hasStock && isActive;
             })
-            .map(product => ({
+            .map((product: FallbackProduct) => ({
               ...product,
               final_price: Number(product.base_price) * ((Number(product.profit_margin) / 100) + 1)
             }));

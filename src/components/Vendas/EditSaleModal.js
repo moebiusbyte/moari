@@ -1,7 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { X, User, CreditCard, Save } from 'lucide-react';
-// Modal base component
 const ModalBase = ({ isOpen, onClose, title, children, size = "max-w-xl" }) => {
     if (!isOpen)
         return null;

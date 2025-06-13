@@ -6,7 +6,6 @@ import EditSaleModal from './EditSaleModal';
 import DeleteSaleModal from './DeleteSaleModal';
 import SaleDetailsModal from './SaleDetailsModal';
 import api from "../../../server/api/axiosConfig";
-// Modal Component
 const Modal = ({ isOpen, onClose, title, children, size = "max-w-xl" }) => {
     if (!isOpen)
         return null;

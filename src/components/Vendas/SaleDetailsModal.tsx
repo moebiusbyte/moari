@@ -34,7 +34,15 @@ interface SaleDetailsModalProps {
 }
 
 // Modal base component
-const ModalBase = ({ isOpen, onClose, title, children, size = "max-w-xl" }) => {
+interface ModalBaseProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  size?: string;
+}
+
+const ModalBase: React.FC<ModalBaseProps> = ({ isOpen, onClose, title, children, size = "max-w-xl" }) => {
   if (!isOpen) return null;
 
   return (

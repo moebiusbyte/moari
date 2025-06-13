@@ -109,11 +109,11 @@ const ProductsPage = () => {
         setProducts([]);
         setTotalPages(0);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Erro ao buscar produtos:", error);
       
       // 🔍 DEBUG: Log detalhado do erro
-      if (error.response) {
+      if (error?.response) {
         console.log('📊 Error status:', error.response.status);
         console.log('📋 Error data:', error.response.data);
       }
@@ -569,7 +569,7 @@ const ProductsPage = () => {
                       </button>
                       <button
                         className="text-red-600 hover:text-red-900"
-                        onClick={() => handleDeleteProduct(product.id)}
+                        onClick={() => handleDeleteProduct(product.id.toString())}
                         title="Excluir Produto">
                         <Trash2 size={18} />
                       </button>
@@ -652,7 +652,7 @@ const ProductsPage = () => {
             setSelectedProduct(null);
           }}
           onConfirm={handleConfirmDelete}
-          productId={selectedProduct.id}
+          productId={selectedProduct.id.toString()}
           productName={selectedProduct.name}/>
       )}
     </div>

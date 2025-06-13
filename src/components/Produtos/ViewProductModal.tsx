@@ -48,7 +48,7 @@ const ViewProductModal: React.FC<ViewProductModalProps> = ({ isOpen, onClose, pr
     }).format(value);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'Não informado';
     return new Date(dateString).toLocaleDateString('pt-BR');
   };

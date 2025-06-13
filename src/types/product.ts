@@ -21,4 +21,6 @@ export interface Product {
   supplier_id?: string;
   quantity: number;
   buy_date?: string;
+  found_by_material?: boolean;
+  supplier_name?: string;
 }
