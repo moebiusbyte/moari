@@ -86,12 +86,16 @@ interface FornecedorFormData {
     }, [isOpen]);
   
     
+    interface SupplierResponse {
+      nextId: string | number;
+    }
+
     const generateSupplierCode = async () => {
       try {
         setLoading(true); // Define o estado como "carregando"
     
         // Chamada à API para obter o próximo código de Fornecedor
-        const response = await api.get('/next-Supplier-id');
+        const response = await api.get<SupplierResponse>('/next-Supplier-id');
         console.log('Resposta da API de código de Fornecedor:', response.data);
 
         // Verificar se a resposta contém o campo esperado

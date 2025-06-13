@@ -3,6 +3,7 @@
         "./src/**/*"
 , "database.ts", "server/app.js"    ],
     "compilerOptions": {
+        "forceConsistentCasingInFileNames": true,
         "baseUrl": ".",
         "paths": {
             "@app/*": ["./app/*"],
@@ -19,6 +20,7 @@
             "dom",
             "es2015"
         ],
-        "jsx": "react-jsx"
+        "jsx": "react-jsx",
+        "module": "esnext"
     }
 }

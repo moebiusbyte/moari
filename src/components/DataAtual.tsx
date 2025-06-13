@@ -15,18 +15,18 @@ const DataAtual = () => {
   }, []);
 
   // Opções de formatação para a data
-  const dateOptions = {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    weekday: 'long' as const,
+    year: 'numeric' as const,
+    month: 'long' as const,
+    day: 'numeric' as const
   };
 
   // Opções de formatação para a hora
   const timeOptions = {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    hour: "2-digit" as "2-digit",
+    minute: "2-digit" as "2-digit",
+    second: "2-digit" as "2-digit",
     hour12: false
   };
 

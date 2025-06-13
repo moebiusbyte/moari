@@ -1,6 +1,5 @@
 // src/components/LoginPage.tsx
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
   BrowserRouter as Router,
@@ -40,6 +39,8 @@ interface LoginResponse {
     };
   }
 
+  const navigate = useNavigate();
+  
   <div className="text-center mt-4">
     <button
       type="button"
