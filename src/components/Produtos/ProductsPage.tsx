@@ -6,23 +6,31 @@ import {
   Trash2,
   ArrowLeft,
   ArrowRight,
-  Eye  // ← NOVO ÍCONE
+  Eye,
+  BarChart3, // ← CORRIGIDO: era "Barchart3" (minúsculo)
+  FileBarChart
 } from "lucide-react";
 import CadastroProdutos from "./CadastroProdutos";
 import EditProductModal from './EditProductModal';
 import DeleteProductModal from './DeleteProductModal';
-import ViewProductModal from './ViewProductModal';  // ← NOVO IMPORT
+import ViewProductModal from './ViewProductModal';
 import api from "../../../server/api/axiosConfig";
 import type { Product } from "../../types/product";
 import type { Supplier } from "../../types/supplier";
+import IntegratedBarcodeGenerator from './IntegratedBarcodeGenerator';
+// import BarcodeGenerator from './BarCodeGenerator'; // ← REMOVIDO: não usado
+// import AdvancedBarcodeSearch from "./AdvancedBarcodeSearch"; // ← REMOVIDO: implementado inline
+// import BarcodeStatisticsComponent from "./BarcodeStatisticsComponent"; // ← REMOVIDO: não usado
 
 const ProductsPage = () => {
   // Estados para modais
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [viewModalOpen, setViewModalOpen] = useState(false);  // ← NOVO ESTADO
+  const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [selectedProductForBarcode, setSelectedProductForBarcode] = useState<Product | null>(null);
 
   // Estados para dados e paginação
   const [products, setProducts] = useState<Product[]>([]);
@@ -78,7 +86,6 @@ const ProductsPage = () => {
 
       const fullUrl = `/products?${params}`;
       
-      // 🔍 DEBUG: Log da URL e parâmetros
       console.log('\n🚀 === FRONTEND DEBUG ===');
       console.log('🔗 URL completa:', fullUrl);
       console.log('🔍 Search term:', searchTerm);
@@ -87,7 +94,6 @@ const ProductsPage = () => {
       
       const response = await api.get(fullUrl);
       
-      // 🔍 DEBUG: Log da resposta
       console.log('\n📦 === RESPONSE DEBUG ===');
       console.log('📊 Status:', response.status);
       console.log('📋 Data structure:', Object.keys(response.data));
@@ -97,7 +103,6 @@ const ProductsPage = () => {
       }
       console.log('=========================\n');
       
-      // Verifica se a resposta tem a estrutura esperada
       if (response.data && response.data.products) {
         setProducts(response.data.products);
         setTotalPages(Math.ceil(response.data.total / 10));
@@ -112,7 +117,6 @@ const ProductsPage = () => {
     } catch (error: any) {
       console.error("❌ Erro ao buscar produtos:", error);
       
-      // 🔍 DEBUG: Log detalhado do erro
       if (error?.response) {
         console.log('📊 Error status:', error.response.status);
         console.log('📋 Error data:', error.response.data);
@@ -164,7 +168,7 @@ const ProductsPage = () => {
     fetchSuppliers();
   }, []);
 
-  // ← NOVO HANDLER PARA VISUALIZAÇÃO
+  // Handler para visualização
   const handleViewProduct = (product: Product) => {
     setSelectedProduct(product);
     setViewModalOpen(true);
@@ -176,15 +180,22 @@ const ProductsPage = () => {
     setEditModalOpen(true);
   };
 
-  const handleNewProduct = () => {
-    setIsModalOpen(true);
+  // Handler para geração de código de barras
+  const handleGenerateBarcode = (product: Product) => {
+    setSelectedProductForBarcode(product);
+    setBarcodeModalOpen(true);
+  };
+
+  const handleBarcodeGenerated = (barcode: any) => {
+    console.log('Código de barras gerado:', barcode);
+    // Opcional: recarregar a lista de produtos se necessário
+    // fetchProducts();
   };
 
   const handleUpdateProduct = async (updatedProduct: Partial<Product>, newImages: File[] = []) => {
     try {
       const formData = new FormData();
 
-      // Garantir que temos o ID do produto
       if (!selectedProduct?.id) {
         throw new Error('ID do produto não encontrado');
       }
@@ -192,7 +203,6 @@ const ProductsPage = () => {
       console.log('🔍 Updated product data received:', updatedProduct);
       console.log('🏢 Supplier ID from form:', updatedProduct.supplier_id);
 
-      // Adicionar campos do produto - INCLUINDO supplier_id
       Object.entries(updatedProduct).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           if (key === 'materials' || key === 'images') {
@@ -203,7 +213,6 @@ const ProductsPage = () => {
         }
       });
 
-      // Adicionar novas imagens
       newImages.forEach((image) => {
         formData.append('images', image);
       });
@@ -214,7 +223,6 @@ const ProductsPage = () => {
         },
       });
 
-      // Atualizar lista de produtos
       setProducts(prevProducts =>
         prevProducts.map(p =>
           p.id.toString() === selectedProduct.id.toString() ? response.data : p
@@ -305,6 +313,78 @@ const ProductsPage = () => {
     }
   };
 
+  // ← COMPONENTE DE BUSCA POR CÓDIGO DE BARRAS (CORRIGIDO)
+  const BarcodeSearchComponent = () => {
+    const [searchBarcode, setSearchBarcode] = useState('');
+    
+    const handleSearchByBarcode = async (barcodeText: string) => {
+      try {
+        const response = await api.get(`/search-by-barcode/${barcodeText}`);
+        if (response.data.found) {
+          const product = response.data.product;
+          // Destacar o produto encontrado na lista
+          setProducts(prevProducts => {
+            const updatedProducts = prevProducts.map(p => 
+              p.id === product.id ? { ...p, highlightedByBarcode: true } : { ...p, highlightedByBarcode: false }
+            );
+            return updatedProducts;
+          });
+          
+          // Scroll para o produto
+          setTimeout(() => {
+            const element = document.getElementById(`product-row-${product.id}`);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 100);
+          
+          alert(`Produto encontrado: ${product.name}`);
+        } else {
+          alert('Produto não encontrado para este código de barras');
+        }
+      } catch (error) {
+        console.error('Erro ao buscar por código de barras:', error);
+        alert('Erro ao buscar produto por código de barras');
+      }
+    };
+
+    return (
+      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h3 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
+          <FileBarChart size={16} />
+          Buscar por Código de Barras
+        </h3>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Digite ou escaneie o código de barras..."
+            value={searchBarcode}
+            onChange={(e) => setSearchBarcode(e.target.value)}
+            className="flex-1 p-2 border rounded-lg"
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && searchBarcode.trim()) {
+                handleSearchByBarcode(searchBarcode.trim());
+                setSearchBarcode('');
+              }
+            }}
+          />
+          <button
+            onClick={() => {
+              if (searchBarcode.trim()) {
+                handleSearchByBarcode(searchBarcode.trim());
+                setSearchBarcode('');
+              }
+            }}
+            disabled={!searchBarcode.trim()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+          >
+            Buscar
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-6">
       {/* Header e Estatísticas */}
@@ -320,7 +400,7 @@ const ProductsPage = () => {
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow">
             <h3 className="text-sm font-semibold text-gray-600">Total de Produtos</h3>
             <p className="text-2xl font-semibold">{estatisticas.totalProdutos}</p>
@@ -340,6 +420,9 @@ const ProductsPage = () => {
             <p className="text-2xl font-semibold">{estatisticas.produtosInativos}</p>
           </div>
         </div>
+
+        {/* ← ADICIONAR COMPONENTE DE BUSCA POR CÓDIGO DE BARRAS */}
+        <BarcodeSearchComponent />
       </div>
 
       {/* Filtros e Busca */}
@@ -355,7 +438,6 @@ const ProductsPage = () => {
           <Search className="absolute left-3 top-2.5 text-gray-400" size={20}/>
         </div>
 
-        {/* Resto dos filtros permanecem iguais */}
         <select
           value={filtroAvancado.categoria}
           onChange={(e) =>
@@ -448,9 +530,15 @@ const ProductsPage = () => {
                 </tr>
               ) : (
                 products.map((product) => (
-                  <tr key={product.id} className={`hover:bg-gray-50 ${
-                    product.found_by_material ? 'bg-blue-50 border-l-4 border-blue-400' : ''
-                  }`}>
+                  <tr 
+                    key={product.id} 
+                    id={`product-row-${product.id}`}
+                    className={`hover:bg-gray-50 transition-colors ${
+                      product.found_by_material ? 'bg-blue-50 border-l-4 border-blue-400' : ''
+                    } ${
+                      product.highlightedByBarcode ? 'bg-green-50 border-l-4 border-green-400 animate-pulse' : ''
+                    }`}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <div className="flex items-center gap-2">
                         {product.code}
@@ -470,7 +558,6 @@ const ProductsPage = () => {
                       {product.category}
                     </td>
                     
-                    {/* NOVA COLUNA DE MATERIAIS */}
                     <td className="px-6 py-4 text-sm text-gray-500">
                       <div className="flex flex-wrap gap-1 max-w-48">
                         {product.materials && product.materials.length > 0 ? (
@@ -509,7 +596,6 @@ const ProductsPage = () => {
                       R$ {(Number(product.base_price) * ((Number(product.profit_margin) / 100) + 1)).toFixed(2)}
                     </td>
                     
-                    {/* COLUNA DE ESTOQUE */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex flex-col gap-1">
                         <span className={`font-medium ${
@@ -553,13 +639,18 @@ const ProductsPage = () => {
                       </div>
                     </td>
                     
-                    {/* COLUNA DE AÇÕES */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         className="text-gray-600 hover:text-gray-900 mr-3"
                         onClick={() => handleViewProduct(product)}
                         title="Visualizar Produto">
                         <Eye size={18} />
+                      </button>
+                      <button
+                        className="text-green-600 hover:text-green-900 mr-3"
+                        onClick={() => handleGenerateBarcode(product)}
+                        title="Gerar Código de Barras">
+                        <BarChart3 size={18} />
                       </button>
                       <button
                         className="text-blue-600 hover:text-blue-900 mr-3"
@@ -654,6 +745,20 @@ const ProductsPage = () => {
           onConfirm={handleConfirmDelete}
           productId={selectedProduct.id.toString()}
           productName={selectedProduct.name}/>
+      )}
+
+      {selectedProductForBarcode && barcodeModalOpen && (
+        <IntegratedBarcodeGenerator
+          productId={selectedProductForBarcode.id.toString()}
+          productCode={selectedProductForBarcode.code}
+          productName={selectedProductForBarcode.name}
+          productPrice={Number(selectedProductForBarcode.base_price) * ((Number(selectedProductForBarcode.profit_margin) / 100) + 1)}
+          onClose={() => {
+            setBarcodeModalOpen(false);
+            setSelectedProductForBarcode(null);
+          }}
+          onBarcodeGenerated={handleBarcodeGenerated}
+        />
       )}
     </div>
   );

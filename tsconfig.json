@@ -5,6 +5,7 @@
     "compilerOptions": {
         "forceConsistentCasingInFileNames": true,
         "baseUrl": ".",
+        "typeRoots": ["./node_modules/@types", "./env.d.ts"],
         "paths": {
             "@app/*": ["./app/*"],
             "@assets/*": ["./assets/*"],
