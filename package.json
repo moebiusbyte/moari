@@ -2,6 +2,7 @@
   "name": "react-typescript",
   "version": "1.0.0",
   "type": "commonjs",
+  "license": "MIT",
   "description": "React and TypeScript example starter project",
   "keywords": [
     "typescript",
