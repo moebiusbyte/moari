@@ -1,0 +1,8 @@
+# Arquivo CODEOWNERS
+# Todos os arquivos precisam de aprovação dos desenvolvedores principais
+
+* @moebiusbyte @mairamelo26 @J0A000
+
+# Arquivos específicos podem ter owners diferentes
+/server/ @moebiusbyte
+/src/ @mairamelo26
