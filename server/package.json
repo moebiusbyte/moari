@@ -3,33 +3,36 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --loader ts-node/esm server.ts"
+    "dev": "tsx server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "clean": "rm -rf dist",
+    "test": "tsx --test **/*.test.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0",
-    "@types/node": "^24.0.1",
-    "@types/pg": "^8.11.11",
-    "@types/uuid": "^10.0.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
-    "uuid": "^11.0.5"
-  },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/ws": "^8.5.14",
-    "bcrypt": "^5.1.1",
+    "@octokit/rest": "^20.0.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "isomorphic-ws": "^5.0.0",
+    "multer": "^1.4.5-lts.1",
     "pg": "^8.13.1",
-    "ws": "^8.18.0"
+    "uuid": "^11.0.5"
   },
-  "description": ""
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^24.0.1",
+    "@types/pg": "^8.11.11",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.6.2",
+    "typescript": "^5.8.3"
+  },
+  "description": "Sistema de gestão Maira - Backend"
 }
