@@ -451,6 +451,7 @@ router.get("/products", async (req, res) => {
         const offset = (Number(page) - 1) * Number(limit);
         let queryParams = [];
         let conditions = [];
+        let paramIndex = 1; // ← ADICIONADO: controle manual de índices
         const isForSale = req.query.forSale === 'true';
         if (isForSale) {
             conditions.push(`p.quantity > 0`);
@@ -459,34 +460,38 @@ router.get("/products", async (req, res) => {
         else {
             console.log('📋 Consultando TODOS os produtos (incluindo sem estoque) - tela administrativa');
         }
-        if (search) {
-            queryParams.push(`%${search}%`);
-            queryParams.push(`%${search}%`);
-            queryParams.push(`%${search}%`);
+        // ← CORRIGIDO: Sistema de parâmetros mais robusto
+        if (search && search.toString().trim() !== '') {
+            const searchTerm = `%${search}%`;
+            queryParams.push(searchTerm, searchTerm, searchTerm);
             conditions.push(`(
-        p.name ILIKE $${queryParams.length - 2} OR 
-        p.code ILIKE $${queryParams.length - 1} OR
+        p.name ILIKE $${paramIndex} OR 
+        p.code ILIKE $${paramIndex + 1} OR
         EXISTS (
           SELECT 1 FROM moari.product_materials pm 
           WHERE pm.product_id = p.id 
-          AND pm.material_name ILIKE $${queryParams.length}
+          AND pm.material_name ILIKE $${paramIndex + 2}
         )
       )`);
+            paramIndex += 3;
             console.log(`🔍 Busca aplicada: "${search}" (nome, código ou material)`);
         }
-        if (req.query.category) {
+        if (req.query.category && req.query.category.toString().trim() !== '') {
             queryParams.push(req.query.category);
-            conditions.push(`p.category = $${queryParams.length}`);
+            conditions.push(`p.category = $${paramIndex}`);
+            paramIndex++;
         }
-        if (req.query.fstatus) {
+        if (req.query.fstatus && req.query.fstatus.toString().trim() !== '') {
             queryParams.push(req.query.fstatus);
-            conditions.push(`p.status = $${queryParams.length}`);
+            conditions.push(`p.status = $${paramIndex}`);
+            paramIndex++;
         }
-        if (req.query.ffornecedor) {
+        if (req.query.ffornecedor && req.query.ffornecedor.toString().trim() !== '') {
             queryParams.push(req.query.ffornecedor);
-            conditions.push(`p.supplier_id = $${queryParams.length}`);
+            conditions.push(`p.supplier_id = $${paramIndex}`);
+            paramIndex++;
         }
-        if (req.query.tempoestoque) {
+        if (req.query.tempoestoque && req.query.tempoestoque.toString().trim() !== '') {
             const tempoEstoque = req.query.tempoestoque;
             switch (tempoEstoque) {
                 case "0-1":
@@ -515,6 +520,11 @@ router.get("/products", async (req, res) => {
             }
         }
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+        // ← SEPARAR consulta de estatísticas da consulta de produtos
+        console.log(`🔍 Query params até agora:`, queryParams);
+        console.log(`🔍 Conditions:`, conditions);
+        console.log(`🔍 Where clause:`, whereClause);
+        // Consulta de estatísticas
         const statsQuery = `
       SELECT 
         COUNT(*) as total_produtos,
@@ -530,6 +540,7 @@ router.get("/products", async (req, res) => {
       FROM moari.products p
       ${whereClause}
     `;
+        console.log(`📊 Executando query de estatísticas...`);
         const statsResult = await client.query(statsQuery, queryParams);
         const statistics = {
             totalProdutos: parseInt(statsResult.rows[0].total_produtos) || 0,
@@ -543,6 +554,7 @@ router.get("/products", async (req, res) => {
             produtosConsignados: parseInt(statsResult.rows[0].produtos_consignados) || 0,
             produtosSemEstoque: parseInt(statsResult.rows[0].produtos_sem_estoque) || 0
         };
+        // Consulta de produtos
         let productsQuery = `
       SELECT 
         p.*,
@@ -571,6 +583,7 @@ router.get("/products", async (req, res) => {
       ${whereClause}
       GROUP BY p.id, s.nome
     `;
+        // Ordenação
         let orderColumn = "p.created_at";
         if (orderBy === "name")
             orderColumn = "p.name";
@@ -590,13 +603,18 @@ router.get("/products", async (req, res) => {
         if (orderDirection === "asc")
             direction = "ASC";
         productsQuery += ` ORDER BY ${orderColumn} ${direction}`;
-        const paginationParams = [
-            ...queryParams,
-            Number(limit),
-            Number(offset)
-        ];
-        productsQuery += ` LIMIT ${paginationParams.length - 1} OFFSET ${paginationParams.length}`;
+        // ← CORRIGIDO: Criar nova array para paginação
+        const paginationParams = [...queryParams, Number(limit), Number(offset)];
+        productsQuery += ` LIMIT $${paginationParams.length - 1} OFFSET $${paginationParams.length}`;
+        console.log(`📋 Executando query de produtos...`);
+        console.log(`📋 Query final:`, productsQuery);
+        console.log(`📋 Params finais:`, paginationParams);
         const productsResult = await client.query(productsQuery, paginationParams);
+        console.log(`✅ Query executada com sucesso. Produtos encontrados: ${productsResult.rows.length}`);
+        // ...após obter o resultado da query, por exemplo:
+        console.log("Produtos retornados:");
+        const produtos = productsResult.rows;
+        produtos.forEach((p) => console.log("Produto:", p.name, p.nome, p.code));
         res.json({
             products: productsResult.rows,
             statistics,
@@ -605,6 +623,7 @@ router.get("/products", async (req, res) => {
     }
     catch (error) {
         console.error("❌ Erro na consulta de produtos:", error);
+        console.error("❌ Stack trace:", error.stack);
         handleDatabaseError(error, res);
     }
     finally {

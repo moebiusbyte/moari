@@ -8,7 +8,7 @@ const produtoInicial = {
     nome: "",
     categoria: "",
     formato: "",
-    tipoMaterial: "",
+    tipoMaterial: [], // ATUALIZADO: inicia como array vazio
     modoUso: "",
     tamanho: "",
     materiaisComponentes: [],
@@ -18,8 +18,8 @@ const produtoInicial = {
     precoBase: "",
     margemLucro: "",
     descricao: "",
-    dataCompra: "", // CORRIGIDO
-    quantidade: "1", // CORRIGIDO: valor padrão 1
+    dataCompra: "",
+    quantidade: "1",
 };
 const CadastroProdutos = ({ isOpen, onClose, onSave, }) => {
     const [produto, setProduto] = useState(produtoInicial);
@@ -30,6 +30,16 @@ const CadastroProdutos = ({ isOpen, onClose, onSave, }) => {
     const [error, setError] = useState(null);
     const [alertaPreco, setAlertaPreco] = useState(null);
     const [fornecedores, setFornecedores] = useState([]);
+    // LISTA DE MATERIAIS DISPONÍVEIS
+    const materiaisDisponiveis = [
+        'Inox',
+        'Ouro',
+        'Platina',
+        'Prata',
+        'Prata 925',
+        'Ródio Branco',
+        'Ródio Negro'
+    ];
     useEffect(() => {
         if (isOpen) {
             console.log("Modal está aberto:", isOpen);
@@ -115,6 +125,25 @@ const CadastroProdutos = ({ isOpen, onClose, onSave, }) => {
             });
         }
     }, [produto.precoBase, produto.margemLucro]);
+    // NOVA FUNÇÃO PARA LIDAR COM SELEÇÃO DE MATERIAIS
+    const handleMaterialChange = (material) => {
+        const materiaisAtuais = Array.isArray(produto.tipoMaterial)
+            ? produto.tipoMaterial
+            : [];
+        let novosMateriais;
+        if (materiaisAtuais.includes(material)) {
+            // Remove o material se já estiver selecionado
+            novosMateriais = materiaisAtuais.filter(m => m !== material);
+        }
+        else {
+            // Adiciona o material se não estiver selecionado
+            novosMateriais = [...materiaisAtuais, material];
+        }
+        setProduto(prev => ({
+            ...prev,
+            tipoMaterial: novosMateriais
+        }));
+    };
     const handleImageUpload = (e) => {
         if (!e.target.files)
             return;
@@ -259,7 +288,7 @@ const CadastroProdutos = ({ isOpen, onClose, onSave, }) => {
                                                         else {
                                                             return `${diffDays} dias`;
                                                         }
-                                                    })()] }) }))] }), _jsxs("div", { className: "space-y-4", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Tipo de Material" }), _jsx("input", { type: "text", name: "tipoMaterial", value: produto.tipoMaterial, onChange: handleChange, className: "w-full rounded-lg border border-gray-300 p-2" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Tamanho" }), _jsx("input", { type: "text", name: "tamanho", value: produto.tamanho, onChange: handleChange, className: "w-full rounded-lg border border-gray-300 p-2" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Garantia" }), _jsxs("div", { className: "flex items-center gap-2", children: [_jsx("input", { type: "checkbox", name: "garantia", checked: produto.garantia === "true", onChange: (e) => setProduto((prev) => ({
+                                                    })()] }) }))] }), _jsxs("div", { className: "space-y-4", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "Tipo de Material" }), _jsxs("select", { name: "tipoMaterial", value: produto.tipoMaterial, onChange: handleChange, className: "w-full rounded-lg border border-gray-300 p-2", required: true, children: [_jsx("option", { value: "", children: "Selecione..." }), _jsx("option", { value: "Inox", children: "Inox" }), _jsx("option", { value: "Ouro", children: "Ouro" }), _jsx("option", { value: "Platina", children: "Platina" }), _jsx("option", { value: "Prata", children: "Prata" }), _jsx("option", { value: "Prata 925", children: "Prata 925" }), _jsx("option", { value: "R\u00F3dio Branco", children: "R\u00F3dio Branco" }), _jsx("option", { value: "R\u00F3dio Negro", children: "R\u00F3dio Negro" })] })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Tamanho" }), _jsx("input", { type: "text", name: "tamanho", value: produto.tamanho, onChange: handleChange, className: "w-full rounded-lg border border-gray-300 p-2" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Garantia" }), _jsxs("div", { className: "flex items-center gap-2", children: [_jsx("input", { type: "checkbox", name: "garantia", checked: produto.garantia === "true", onChange: (e) => setProduto((prev) => ({
                                                                 ...prev,
                                                                 garantia: e.target.checked ? "true" : "false",
                                                             })), className: "w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" }), _jsx("span", { children: "Produto com garantia" })] })] })] })] }), _jsxs("div", { className: "mt-6", children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Materiais Componentes" }), _jsxs("div", { className: "flex gap-2 mb-2", children: [_jsx("input", { type: "text", value: novoMaterial, onChange: (e) => setNovoMaterial(e.target.value), className: "flex-1 rounded-lg border border-gray-300 p-2", placeholder: "Adicionar material..." }), _jsx("button", { onClick: handleAddMaterial, className: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700", children: _jsx(Plus, { size: 20 }) })] }), _jsx("div", { className: "flex flex-wrap gap-2 mt-2", children: produto.materiaisComponentes.map((material, index) => (_jsxs("span", { className: "inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full", children: [_jsx(Tag, { size: 14 }), material, _jsx("button", { onClick: () => handleRemoveMaterial(index), className: "ml-1 text-gray-500 hover:text-red-500", children: _jsx(X, { size: 14 }) })] }, index))) })] }), _jsxs("div", { className: "mt-6 p-4 bg-gray-50 rounded-lg", children: [_jsxs("h3", { className: "text-lg font-medium mb-4 flex items-center gap-2", children: [_jsx(Info, { size: 20 }), "Precifica\u00E7\u00E3o"] }), _jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Pre\u00E7o Base (R$)" }), _jsx("input", { type: "number", name: "precoBase", value: produto.precoBase, onChange: handleChange, className: "w-full rounded-lg border border-gray-300 p-2", step: "0.01" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Margem de Lucro (%)" }), _jsx("input", { type: "number", name: "margemLucro", value: produto.margemLucro, onChange: handleChange, className: "w-full rounded-lg border border-gray-300 p-2" })] })] }), alertaPreco && (_jsx(Alert, { className: "mt-4", children: _jsx(AlertDescription, { children: alertaPreco.mensagem }) }))] }), _jsxs("div", { className: "mt-6", children: [_jsx("h3", { className: "text-lg font-medium mb-4", children: "Imagens do Produto" }), _jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4", children: [previewImagens.map((preview, index) => (_jsxs("div", { className: "relative", children: [_jsx("img", { src: preview, alt: `Preview ${index + 1}`, className: "w-full h-32 object-cover rounded-lg" }), _jsx("button", { onClick: () => handleRemoveImage(index), className: "absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600", children: _jsx(Trash2, { size: 16 }) })] }, index))), previewImagens.length < 5 && (_jsxs("label", { className: "border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-gray-400", children: [_jsx(Upload, { size: 24, className: "text-gray-400" }), _jsx("span", { className: "mt-2 text-sm text-gray-500", children: "Adicionar Imagem" }), _jsx("span", { className: "mt-1 text-xs text-gray-400", children: "M\u00E1x. 5 imagens" }), _jsx("input", { type: "file", multiple: true, accept: "image/*", onChange: handleImageUpload, className: "hidden" })] }))] })] }), _jsxs("div", { className: "mt-6", children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Descri\u00E7\u00E3o" }), _jsx("textarea", { name: "descricao", value: produto.descricao, onChange: handleChange, rows: 4, className: "w-full rounded-lg border border-gray-300 p-2" })] })] }), _jsxs("div", { className: "border-t p-6 flex justify-end gap-4", children: [_jsx("button", { onClick: onClose, className: "px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50", children: "Cancelar" }), _jsx("button", { onClick: handleSave, className: `px-4 py-2 rounded-lg flex items-center ${loading

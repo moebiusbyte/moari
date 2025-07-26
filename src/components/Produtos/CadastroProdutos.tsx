@@ -9,7 +9,7 @@ interface ProdutoFormData {
   nome: string;
   categoria: string;
   formato: string;
-  tipoMaterial: string;
+  tipoMaterial: string | string[]; // ATUALIZADO: pode ser string ou array
   modoUso: string;
   tamanho: string;
   materiaisComponentes: string[];
@@ -19,8 +19,8 @@ interface ProdutoFormData {
   precoBase: string;
   margemLucro: string;
   descricao: string;
-  dataCompra: string;    // CORRIGIDO: renomeado de dataCompra para buy_date
-  quantidade: string;    // CORRIGIDO: renomeado de quantidade para quantity
+  dataCompra: string;
+  quantidade: string;
 }
 
 interface CadastroProdutosProps {
@@ -34,7 +34,7 @@ const produtoInicial: ProdutoFormData = {
   nome: "",
   categoria: "",
   formato: "",
-  tipoMaterial: "",
+  tipoMaterial: [], // ATUALIZADO: inicia como array vazio
   modoUso: "",
   tamanho: "",
   materiaisComponentes: [] as string[],
@@ -44,8 +44,8 @@ const produtoInicial: ProdutoFormData = {
   precoBase: "",
   margemLucro: "",
   descricao: "",
-  dataCompra: "",        // CORRIGIDO
-  quantidade: "1",       // CORRIGIDO: valor padrão 1
+  dataCompra: "",
+  quantidade: "1",
 };
 
 const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
@@ -64,6 +64,17 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     mensagem: string;
   } | null>(null);
   const [fornecedores, setFornecedores] = useState<Supplier[]>([]);
+
+  // LISTA DE MATERIAIS DISPONÍVEIS
+  const materiaisDisponiveis = [
+    'Inox',
+    'Ouro', 
+    'Platina',
+    'Prata',
+    'Prata 925',
+    'Ródio Branco',
+    'Ródio Negro'
+  ];
 
   useEffect(() => {
     if (isOpen) {
@@ -157,6 +168,27 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       });
     }
   }, [produto.precoBase, produto.margemLucro]);
+
+  // NOVA FUNÇÃO PARA LIDAR COM SELEÇÃO DE MATERIAIS
+  const handleMaterialChange = (material: string) => {
+    const materiaisAtuais = Array.isArray(produto.tipoMaterial) 
+      ? produto.tipoMaterial 
+      : [];
+    
+    let novosMateriais;
+    if (materiaisAtuais.includes(material)) {
+      // Remove o material se já estiver selecionado
+      novosMateriais = materiaisAtuais.filter(m => m !== material);
+    } else {
+      // Adiciona o material se não estiver selecionado
+      novosMateriais = [...materiaisAtuais, material];
+    }
+    
+    setProduto(prev => ({
+      ...prev,
+      tipoMaterial: novosMateriais
+    }));
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -458,18 +490,26 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
 
             {/* Características */}
             <div className="space-y-4">
-
+              {/* SEÇÃO DE MATERIAIS ATUALIZADA */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de Material
-                </label>
-                <input
-                  type="text"
-                  name="tipoMaterial"
-                  value={produto.tipoMaterial}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 p-2"
-                />
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipo de Material
+              </label>
+              <select
+                name="tipoMaterial"
+                value={produto.tipoMaterial}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-gray-300 p-2"
+                required>
+                <option value="">Selecione...</option>
+                <option value="Inox">Inox</option>
+                <option value="Ouro">Ouro</option>
+                <option value="Platina">Platina</option>
+                <option value="Prata">Prata</option>
+                <option value="Prata 925">Prata 925</option>
+                <option value="Ródio Branco">Ródio Branco</option>
+                <option value="Ródio Negro">Ródio Negro</option>
+              </select>
               </div>
 
               <div>

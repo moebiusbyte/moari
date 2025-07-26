@@ -10,6 +10,8 @@ import fornecedoresRoutes from './routes/fornecedoresRoutes.js';
 import salesRoutes from './routes/vendasRoutes.js'; 
 import relatoriosRoutes from './routes/relatoriosRoutes.js';
 import { pool, setupDatabase } from './database.js';
+import consignadosRoutes from './routes/consignadosRoutes.js';
+
 
 dotenv.config();
 
@@ -111,6 +113,13 @@ try {
   console.log("✅ Rotas de produtos registradas");
 } catch (error) {
   console.error("❌ Erro ao registrar rotas de produtos:", error);
+}
+
+try{
+  app.use('/api', consignadosRoutes);
+  console.log("✅ Rotas de consignados registradas");
+} catch (error) {
+  console.error("❌ Erro ao registrar rotas de consignados:", error);
 }
 
 try {
