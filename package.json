@@ -9,7 +9,8 @@
     "react",
     "starter"
   ],
-  "main": "src/index.tsx",
+  "main": "electron.js",
+  "homepage": "./",
   "dependencies": {
     "@neondatabase/serverless": "0.10.4",
     "@octokit/rest": "^22.0.0",
@@ -55,6 +56,8 @@
     "@typescript-eslint/parser": "^8.34.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.21",
+    "electron": "^37.2.4",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.29.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -72,7 +75,14 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "preview": "vite preview",
-    "build-frontend": "vite build"
+    "build-frontend": "vite build",
+    "build-server": "cd server && npm run build",
+    "build-all": "npm run build-frontend && npm run build-server",
+    "electron": "electron .",
+    "electron-dev": "NODE_ENV=development electron .",
+    "dist": "npm run build-all && electron-builder",
+    "dist-win": "npm run build-all && electron-builder --win",
+    "pack": "npm run build-all && electron-builder --dir"
   },
   "browserslist": [
     ">0.2%",
@@ -80,5 +90,56 @@
     "not ie <= 11",
     "not op_mini all"
   ],
+  "build": {
+    "appId": "com.moari.app",
+    "productName": "Sistema MoAri",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "server/dist/**/*",
+      "server/package.json",
+      "electron.js",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server/dist",
+        "to": "server/dist"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    }
+  },
   "author": ""
 }

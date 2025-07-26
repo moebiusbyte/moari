@@ -1,6 +1,6 @@
 // App.tsx
 import React from "react";
-import { BrowserRouter } from "react-router-dom";
+import { HashRouter } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Layout from "./Layout";
 
@@ -8,9 +8,9 @@ export default function App() {
   return (
     <div>
       <AuthProvider>
-        <BrowserRouter>
+        <HashRouter>
           <Layout />
-        </BrowserRouter>
+        </HashRouter>
       </AuthProvider>
     </div>
   );

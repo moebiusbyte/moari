@@ -4,6 +4,7 @@ import path from "path";
   
 export default defineConfig({
   plugins: [react()],
+  base: "./", // Importante para Electron
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -15,6 +16,17 @@ export default defineConfig({
       v7_startTransition: true,
       v7_relativeSplatPath: true
     })
+  },
+  build: {
+    outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+        }
+      }
+    }
   },
   server: {
     host: true,
