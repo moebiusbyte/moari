@@ -302,10 +302,12 @@ router.post("/consignados", async (req: Request, res: Response) => {
 
     const {
       nome, contato, telefone, email, endereco, cidade, estado,
-      cnpj, comissao, ultima_entrega, status = 'ativo'
+      cnpj, comissao, ultima_entrega, status = 'ativo',
+      produtos = [] // Array de produtos para consignar
     } = req.body;
 
     console.log('📝 Criando novo consignado:', { nome, contato, cidade, estado });
+    console.log('📦 Produtos para consignar:', produtos);
 
     // Validações básicas
     if (!nome || nome.trim() === '') {
@@ -313,6 +315,58 @@ router.post("/consignados", async (req: Request, res: Response) => {
       return;
     }
 
+    // Validar produtos antes de criar o consignado
+    if (produtos && produtos.length > 0) {
+      for (const produto of produtos) {
+        const { product_id, quantidade } = produto;
+        
+        // Verificar se o produto existe e está disponível
+        const productCheck = await client.query(
+          'SELECT id, name, status, quantity FROM moari.products WHERE id = $1',
+          [product_id]
+        );
+
+        if (productCheck.rowCount === 0) {
+          res.status(400).json({ 
+            error: `Produto com ID ${product_id} não encontrado` 
+          });
+          return;
+        }
+
+        const produtoData = productCheck.rows[0];
+
+        // Verificar se o produto está ativo
+        if (produtoData.status !== 'active') {
+          res.status(400).json({ 
+            error: `Produto "${produtoData.name}" não está disponível para consignação (status: ${produtoData.status})` 
+          });
+          return;
+        }
+
+        // Verificar se há quantidade suficiente
+        if (!produtoData.quantity || produtoData.quantity < quantidade) {
+          res.status(400).json({ 
+            error: `Produto "${produtoData.name}" não tem quantidade suficiente. Disponível: ${produtoData.quantity || 0}, Solicitado: ${quantidade}` 
+          });
+          return;
+        }
+
+        // Verificar se já existe uma consignação ativa para este produto
+        const existingCheck = await client.query(
+          'SELECT * FROM moari.product_consignados WHERE product_id = $1 AND status = $2',
+          [product_id, 'ativo']
+        );
+
+        if ((existingCheck.rowCount ?? 0) > 0) {
+          res.status(400).json({ 
+            error: `Produto "${produtoData.name}" já está consignado para outro consignado` 
+          });
+          return;
+        }
+      }
+    }
+
+    // Criar o consignado
     const insertQuery = `
       INSERT INTO moari.consignados (
         nome, contato, telefone, email, endereco, cidade, estado,
@@ -329,11 +383,61 @@ router.post("/consignados", async (req: Request, res: Response) => {
     const result = await client.query(insertQuery, insertParams);
     const consignado = result.rows[0];
 
+    console.log(`✅ Consignado criado com ID: ${consignado.id}`);
+
+    // Processar produtos para consignação
+    const produtosConsignados = [];
+    if (produtos && produtos.length > 0) {
+      for (const produto of produtos) {
+        const { product_id, quantidade, valor_combinado, observacoes } = produto;
+        
+        console.log(`📦 Consignando produto ${product_id} (quantidade: ${quantidade}) para consignado ${consignado.id}`);
+
+        // Criar registro de consignação
+        const consignacaoQuery = `
+          INSERT INTO moari.product_consignados (
+            product_id, consignado_id, quantidade_consignada, valor_combinado, observacoes
+          ) VALUES ($1, $2, $3, $4, $5)
+          RETURNING *
+        `;
+
+        const consignacaoResult = await client.query(consignacaoQuery, [
+          product_id, consignado.id, quantidade, valor_combinado || 0, observacoes || null
+        ]);
+
+        // Atualizar status do produto para 'consigned'
+        await client.query(
+          'UPDATE moari.products SET status = $1 WHERE id = $2',
+          ['consigned', product_id]
+        );
+
+        // Reduzir a quantidade do produto (se necessário)
+        await client.query(
+          'UPDATE moari.products SET quantity = quantity - $1 WHERE id = $2',
+          [quantidade, product_id]
+        );
+
+        produtosConsignados.push(consignacaoResult.rows[0]);
+        
+        console.log(`✅ Produto ${product_id} consignado com sucesso`);
+      }
+
+      // Atualizar data da última entrega do consignado
+      await client.query(
+        'UPDATE moari.consignados SET ultima_entrega = CURRENT_DATE WHERE id = $1',
+        [consignado.id]
+      );
+    }
+
     await client.query("COMMIT");
     
-    console.log(`✅ Consignado criado com ID: ${consignado.id}`);
+    console.log(`✅ Consignado ${consignado.id} criado com ${produtosConsignados.length} produtos consignados`);
     
-    res.status(201).json(consignado);
+    res.status(201).json({
+      consignado,
+      produtosConsignados,
+      message: `Consignado criado com sucesso${produtos.length > 0 ? ` com ${produtos.length} produto(s) consignado(s)` : ''}`
+    });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error('❌ Erro ao criar consignado:', error);
@@ -639,6 +743,88 @@ router.put("/consignados/products/:consignacaoId/devolver", async (req: Request,
   }
 });
 
+// Nova rota: Buscar informações de consignação de um produto
+router.get("/products/:productId/consignacao-info", async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const { productId } = req.params;
+    
+    console.log(`🔍 Buscando informações de consignação para produto ID: ${productId}`);
+
+    // Buscar consignação ativa do produto
+    const consignacaoQuery = `
+      SELECT 
+        pc.*,
+        c.nome as consignado_nome,
+        c.contato as consignado_contato,
+        c.telefone as consignado_telefone,
+        c.email as consignado_email,
+        c.cidade as consignado_cidade,
+        c.estado as consignado_estado,
+        c.endereco as consignado_endereco,
+        c.ultima_entrega as consignado_ultima_entrega,
+        p.name as produto_nome,
+        p.code as produto_codigo
+      FROM moari.product_consignados pc
+      JOIN moari.consignados c ON pc.consignado_id = c.id
+      JOIN moari.products p ON pc.product_id = p.id
+      WHERE pc.product_id = $1 AND pc.status = 'ativo'
+      ORDER BY pc.created_at DESC
+      LIMIT 1
+    `;
+    
+    const result = await client.query(consignacaoQuery, [productId]);
+    
+    if (result.rowCount === 0) {
+      console.log(`ℹ️ Produto ${productId} não possui consignação ativa`);
+      res.json({ 
+        hasConsignacao: false,
+        message: 'Produto não está consignado'
+      });
+      return;
+    }
+
+    const consignacaoInfo = result.rows[0];
+    
+    console.log(`✅ Consignação ativa encontrada para produto ${productId} com ${consignacaoInfo.consignado_nome}`);
+    
+    res.json({
+      hasConsignacao: true,
+      consignacao: {
+        id: consignacaoInfo.id,
+        dataConsignacao: consignacaoInfo.created_at,
+        quantidadeConsignada: consignacaoInfo.quantidade_consignada,
+        valorCombinado: consignacaoInfo.valor_combinado,
+        observacoes: consignacaoInfo.observacoes,
+        consignado: {
+          id: consignacaoInfo.consignado_id,
+          nome: consignacaoInfo.consignado_nome,
+          contato: consignacaoInfo.consignado_contato,
+          telefone: consignacaoInfo.consignado_telefone,
+          email: consignacaoInfo.consignado_email,
+          cidade: consignacaoInfo.consignado_cidade,
+          estado: consignacaoInfo.consignado_estado,
+          endereco: consignacaoInfo.consignado_endereco,
+          ultimaEntrega: consignacaoInfo.consignado_ultima_entrega
+        },
+        produto: {
+          nome: consignacaoInfo.produto_nome,
+          codigo: consignacaoInfo.produto_codigo
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar informações de consignação:', error);
+    res.status(500).json({ 
+      error: 'Erro ao buscar informações de consignação',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  } finally {
+    client.release();
+  }
+});
+
 // ==================== ROTAS DE RELATÓRIOS ====================
 
 // Relatório de consignados
@@ -674,28 +860,133 @@ router.get("/consignados/relatorio", async (req: Request, res: Response) => {
     const statsQuery = `
       SELECT 
         COUNT(DISTINCT c.id) as total_consignados,
-        COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'ativo') as consignados_ativos,
+        COUNT(DISTINCT CASE WHEN c.status = 'ativo' THEN c.id END) as consignados_ativos,
         COUNT(pc.id) as total_produtos_consignados,
-        COUNT(pc.id) FILTER (WHERE pc.status = 'ativo') as produtos_ativos_consignados,
-        COUNT(pc.id) FILTER (WHERE pc.status = 'vendido') as produtos_vendidos_consignados,
-        COALESCE(SUM(pc.valor_combinado), 0) as valor_total_consignado,
-        COALESCE(SUM(CASE WHEN pc.status = 'vendido' THEN pc.valor_combinado END), 0) as valor_total_vendido
+        COUNT(CASE WHEN pc.status = 'ativo' THEN 1 END) as produtos_atualmente_consignados,
+        COUNT(CASE WHEN pc.status = 'vendido' THEN 1 END) as produtos_vendidos_consignacao,
+        COUNT(CASE WHEN pc.status = 'devolvido' THEN 1 END) as produtos_devolvidos,
+        COALESCE(SUM(pc.valor_combinado), 0) as valor_total_movimento,
+        COALESCE(SUM(CASE WHEN pc.status = 'vendido' THEN pc.valor_combinado END), 0) as receita_consignacao,
+        COALESCE(AVG(pc.valor_combinado), 0) as ticket_medio_consignacao
       FROM moari.consignados c
       LEFT JOIN moari.product_consignados pc ON c.id = pc.consignado_id
     `;
 
     const statsResult = await client.query(statsQuery);
+    const stats = statsResult.rows[0];
 
-    console.log(`✅ Relatório gerado: ${result.rows.length} consignados`);
+    console.log(`✅ Relatório gerado com ${result.rows.length} consignados`);
 
     res.json({
-      consignados: result.rows,
-      estatisticas: statsResult.rows[0],
-      generatedAt: new Date().toISOString()
+      success: true,
+      estatisticas: {
+        totalConsignados: parseInt(stats.total_consignados) || 0,
+        consignadosAtivos: parseInt(stats.consignados_ativos) || 0,
+        totalProdutosConsignados: parseInt(stats.total_produtos_consignados) || 0,
+        produtosAtualmenteConsignados: parseInt(stats.produtos_atualmente_consignados) || 0,
+        produtosVendidosConsignacao: parseInt(stats.produtos_vendidos_consignacao) || 0,
+        produtosDevolvidos: parseInt(stats.produtos_devolvidos) || 0,
+        valorTotalMovimento: parseFloat(stats.valor_total_movimento) || 0,
+        receitaConsignacao: parseFloat(stats.receita_consignacao) || 0,
+        ticketMedioConsignacao: parseFloat(stats.ticket_medio_consignacao) || 0
+      },
+      consignados: result.rows.map(row => ({
+        id: row.id,
+        nome: row.nome,
+        cidade: row.cidade,
+        estado: row.estado,
+        status: row.status,
+        comissao: parseFloat(row.comissao) || 0,
+        ultimaEntrega: row.ultima_entrega,
+        totalProdutosConsignados: parseInt(row.total_produtos_consignados) || 0,
+        produtosAtivos: parseInt(row.produtos_ativos) || 0,
+        produtosVendidos: parseInt(row.produtos_vendidos) || 0,
+        produtosDevolvidos: parseInt(row.produtos_devolvidos) || 0,
+        valorTotalConsignado: parseFloat(row.valor_total_consignado) || 0,
+        valorTotalVendido: parseFloat(row.valor_total_vendido) || 0
+      }))
     });
+
   } catch (error) {
     console.error('❌ Erro ao gerar relatório de consignados:', error);
-    handleDatabaseError(error, res);
+    res.status(500).json({ 
+      error: 'Erro ao gerar relatório de consignados',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Nova rota: Relatório de evolução de consignações
+router.get("/consignados/evolucao", async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const { period = 'month' } = req.query;
+    
+    console.log(`📈 Gerando evolução de consignações para período: ${period}`);
+
+    let dateFormat = '';
+    let interval = '';
+    
+    switch (period) {
+      case 'week':
+        dateFormat = 'YYYY-MM-DD';
+        interval = '7 days';
+        break;
+      case 'month':
+        dateFormat = 'YYYY-MM-DD';
+        interval = '30 days';
+        break;
+      case 'quarter':
+        dateFormat = 'YYYY-MM';
+        interval = '90 days';
+        break;
+      case 'year':
+        dateFormat = 'YYYY-MM';
+        interval = '365 days';
+        break;
+      default:
+        dateFormat = 'YYYY-MM-DD';
+        interval = '30 days';
+    }
+
+    const evolucaoQuery = `
+      SELECT 
+        TO_CHAR(pc.created_at, '${dateFormat}') as periodo,
+        COUNT(pc.id) as novas_consignacoes,
+        COUNT(CASE WHEN pc.status = 'vendido' THEN 1 END) as vendas_periodo,
+        COUNT(CASE WHEN pc.status = 'devolvido' THEN 1 END) as devolucoes_periodo,
+        COALESCE(SUM(pc.valor_combinado), 0) as valor_consignado,
+        COALESCE(SUM(CASE WHEN pc.status = 'vendido' THEN pc.valor_combinado END), 0) as receita_periodo
+      FROM moari.product_consignados pc
+      WHERE pc.created_at >= CURRENT_DATE - INTERVAL '${interval}'
+      GROUP BY TO_CHAR(pc.created_at, '${dateFormat}')
+      ORDER BY periodo DESC
+      LIMIT 30
+    `;
+
+    const result = await client.query(evolucaoQuery);
+
+    res.json({
+      success: true,
+      period,
+      dados: result.rows.map(row => ({
+        periodo: row.periodo,
+        novasConsignacoes: parseInt(row.novas_consignacoes) || 0,
+        vendasPeriodo: parseInt(row.vendas_periodo) || 0,
+        devolucoesPeriodo: parseInt(row.devolucoes_periodo) || 0,
+        valorConsignado: parseFloat(row.valor_consignado) || 0,
+        receitaPeriodo: parseFloat(row.receita_periodo) || 0
+      }))
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao gerar evolução de consignações:', error);
+    res.status(500).json({ 
+      error: 'Erro ao gerar evolução de consignações',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
   } finally {
     client.release();
   }
@@ -717,7 +1008,9 @@ router.get("/debug-consignados-status", (req: Request, res: Response) => {
       "POST /api/consignados/:consignadoId/products/:productId": "✅ Consignar produto",
       "GET /api/consignados/:id/products": "✅ Listar produtos do consignado",
       "PUT /api/consignados/products/:consignacaoId/devolver": "✅ Devolver produto",
-      "GET /api/consignados/relatorio": "✅ Relatório de consignados"
+      "GET /api/products/:productId/consignacao-info": "✅ Info de consignação do produto",
+      "GET /api/consignados/relatorio": "✅ Relatório de consignados",
+      "GET /api/consignados/evolucao": "✅ Evolução de consignações"
     },
     testUrls: {
       setupTables: `${req.protocol}://${req.get('host')}/api/setup-consignados-tables`,
@@ -739,7 +1032,9 @@ console.log("✅ DELETE /api/consignados/:id");
 console.log("✅ POST /api/consignados/:consignadoId/products/:productId");
 console.log("✅ GET  /api/consignados/:id/products");
 console.log("✅ PUT  /api/consignados/products/:consignacaoId/devolver");
+console.log("✅ GET  /api/products/:productId/consignacao-info");
 console.log("✅ GET  /api/consignados/relatorio");
+console.log("✅ GET  /api/consignados/evolucao");
 console.log("✅ GET  /api/debug-consignados-status");
 console.log("===============================================");
 

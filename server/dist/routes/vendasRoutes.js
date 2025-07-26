@@ -526,6 +526,309 @@ router.delete('/sales/:id', (async (req, res) => {
         client.release();
     }
 }));
+// ==================== ROTA PARA VENDA DE CONSIGNADOS ====================
+// GET /consignados-vendas/disponiveis - Listar produtos consignados disponíveis para venda
+router.get("/consignados-vendas/disponiveis", async (req, res) => {
+    const client = await pool.connect();
+    try {
+        console.log('📋 Listando produtos consignados disponíveis para venda...');
+        const { search } = req.query;
+        let queryParams = [];
+        let conditions = ['pc.status = $1'];
+        queryParams.push('ativo');
+        // Adicionar filtro de busca se fornecido
+        if (search && search.toString().trim() !== '') {
+            const searchTerm = `%${search}%`;
+            queryParams.push(searchTerm, searchTerm, searchTerm);
+            conditions.push(`(
+        p.name ILIKE $${queryParams.length - 2} OR 
+        p.code ILIKE $${queryParams.length - 1} OR
+        c.nome ILIKE $${queryParams.length}
+      )`);
+        }
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+        const query = `
+      SELECT 
+        pc.id as consignacao_id,
+        pc.product_id,
+        pc.quantidade_consignada,
+        pc.quantidade_vendida,
+        pc.valor_combinado,
+        pc.data_consignacao,
+        pc.observacoes,
+        (pc.quantidade_consignada - COALESCE(pc.quantidade_vendida, 0)) as quantidade_disponivel,
+        p.name as product_name,
+        p.code as product_code,
+        p.base_price,
+        p.category,
+        c.id as consignado_id,
+        c.nome as consignado_nome,
+        c.contato as consignado_contato,
+        c.telefone as consignado_telefone,
+        c.cidade as consignado_cidade,
+        c.estado as consignado_estado,
+        c.comissao,
+        array_agg(pi.image_url ORDER BY pi.order_index) FILTER (WHERE pi.image_url IS NOT NULL) as images
+      FROM moari.product_consignados pc
+      JOIN moari.products p ON pc.product_id = p.id
+      JOIN moari.consignados c ON pc.consignado_id = c.id
+      LEFT JOIN moari.product_images pi ON p.id = pi.product_id
+      ${whereClause}
+      GROUP BY pc.id, p.id, c.id
+      HAVING (pc.quantidade_consignada - COALESCE(pc.quantidade_vendida, 0)) > 0
+      ORDER BY pc.created_at DESC
+    `;
+        debugQuery(query, queryParams);
+        const result = await client.query(query, queryParams);
+        console.log(`✅ Encontrados ${result.rows.length} produtos consignados disponíveis para venda`);
+        res.json({
+            success: true,
+            consignados: result.rows,
+            total: result.rows.length
+        });
+    }
+    catch (error) {
+        console.error('❌ Erro ao listar produtos consignados disponíveis:', error);
+        handleDatabaseError(error, res);
+    }
+    finally {
+        client.release();
+    }
+});
+// POST /consignados-vendas/registrar - Registrar venda de produto consignado
+router.post("/consignados-vendas/registrar", async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        const { consignacaoId, quantidadeVendida, precoVenda, customerName, customerEmail, customerPhone, paymentMethod, notes, desconto = 0 } = req.body;
+        console.log(`💰 Registrando venda de consignado - Consignação ID: ${consignacaoId}`);
+        console.log('📦 Dados da venda:', { quantidadeVendida, precoVenda, customerName, paymentMethod });
+        // Validações básicas
+        if (!consignacaoId || !quantidadeVendida || !precoVenda || !customerName || !paymentMethod) {
+            res.status(400).json({
+                error: 'Dados obrigatórios: consignacaoId, quantidadeVendida, precoVenda, customerName, paymentMethod'
+            });
+            return;
+        }
+        // Buscar informações da consignação
+        const consignacaoCheck = await client.query(`
+      SELECT 
+        pc.*,
+        p.name as product_name,
+        p.code as product_code,
+        p.base_price,
+        c.nome as consignado_nome,
+        c.comissao
+      FROM moari.product_consignados pc
+      JOIN moari.products p ON pc.product_id = p.id
+      JOIN moari.consignados c ON pc.consignado_id = c.id
+      WHERE pc.id = $1 AND pc.status = 'ativo'
+    `, [consignacaoId]);
+        if (consignacaoCheck.rowCount === 0) {
+            res.status(404).json({ error: 'Consignação não encontrada ou já finalizada' });
+            return;
+        }
+        const consignacao = consignacaoCheck.rows[0];
+        // Verificar se a quantidade vendida não excede a quantidade consignada
+        const quantidadeDisponivelParaVenda = consignacao.quantidade_consignada - (consignacao.quantidade_vendida || 0);
+        if (quantidadeVendida > quantidadeDisponivelParaVenda) {
+            res.status(400).json({
+                error: `Quantidade inválida. Disponível para venda: ${quantidadeDisponivelParaVenda}`
+            });
+            return;
+        }
+        const valorTotal = (precoVenda * quantidadeVendida) - desconto;
+        const comissaoValue = valorTotal * (consignacao.comissao / 100);
+        // 1. Criar registro de venda normal
+        const saleInsertQuery = `
+      INSERT INTO moari.sales (
+        customer_name, customer_email, customer_phone, payment_method, 
+        total_amount, discount_amount, notes, status, sale_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE)
+      RETURNING *
+    `;
+        const saleNotes = `${notes || ''}\n[VENDA CONSIGNADA] Produto: ${consignacao.product_name} | Consignado: ${consignacao.consignado_nome}`.trim();
+        const saleResult = await client.query(saleInsertQuery, [
+            customerName,
+            customerEmail || null,
+            customerPhone || null,
+            paymentMethod,
+            valorTotal,
+            desconto,
+            saleNotes,
+            'completed'
+        ]);
+        const sale = saleResult.rows[0];
+        // 2. Criar item da venda
+        const saleItemInsertQuery = `
+      INSERT INTO moari.sale_items (
+        sale_id, product_id, quantity, unit_price, total_price
+      ) VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+        await client.query(saleItemInsertQuery, [
+            sale.id,
+            consignacao.product_id,
+            quantidadeVendida,
+            precoVenda,
+            precoVenda * quantidadeVendida
+        ]);
+        // 3. Atualizar quantidade vendida na consignação
+        const novaQuantidadeVendida = (consignacao.quantidade_vendida || 0) + quantidadeVendida;
+        const statusConsignacao = novaQuantidadeVendida >= consignacao.quantidade_consignada ? 'vendido' : 'ativo';
+        await client.query(`
+      UPDATE moari.product_consignados 
+      SET quantidade_vendida = $1, status = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [novaQuantidadeVendida, statusConsignacao, consignacaoId]);
+        // 4. Se produto foi totalmente vendido, atualizar status do produto
+        if (statusConsignacao === 'vendido') {
+            await client.query('UPDATE moari.products SET status = $1 WHERE id = $2', ['sold', consignacao.product_id]);
+            console.log(`✅ Produto ${consignacao.product_id} marcado como vendido`);
+        }
+        await client.query("COMMIT");
+        console.log(`✅ Venda de consignado registrada com sucesso - Sale ID: ${sale.id}`);
+        res.status(201).json({
+            success: true,
+            sale: sale,
+            consignacao: {
+                id: consignacaoId,
+                quantidadeVendida: novaQuantidadeVendida,
+                quantidadeConsignada: consignacao.quantidade_consignada,
+                status: statusConsignacao,
+                produto: consignacao.product_name,
+                consignado: consignacao.consignado_nome,
+                comissao: comissaoValue
+            },
+            message: `Venda registrada com sucesso! ${statusConsignacao === 'vendido' ? 'Produto totalmente vendido.' : 'Produto parcialmente vendido.'}`
+        });
+    }
+    catch (error) {
+        await client.query("ROLLBACK");
+        console.error('❌ Erro ao registrar venda de consignado:', error);
+        handleDatabaseError(error, res);
+    }
+    finally {
+        client.release();
+    }
+});
+// POST /sales/consignado - Registrar venda de produto consignado
+router.post("/sales/consignado", async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        const { consignacaoId, quantidadeVendida, precoVenda, customerName, customerEmail, customerPhone, paymentMethod, notes, desconto = 0 } = req.body;
+        console.log(`💰 Registrando venda de consignado - Consignação ID: ${consignacaoId}`);
+        console.log('📦 Dados da venda:', { quantidadeVendida, precoVenda, customerName, paymentMethod });
+        // Validações básicas
+        if (!consignacaoId || !quantidadeVendida || !precoVenda || !customerName || !paymentMethod) {
+            res.status(400).json({
+                error: 'Dados obrigatórios: consignacaoId, quantidadeVendida, precoVenda, customerName, paymentMethod'
+            });
+            return;
+        }
+        // Buscar informações da consignação
+        const consignacaoCheck = await client.query(`
+      SELECT 
+        pc.*,
+        p.name as product_name,
+        p.code as product_code,
+        p.base_price,
+        c.nome as consignado_nome,
+        c.comissao
+      FROM moari.product_consignados pc
+      JOIN moari.products p ON pc.product_id = p.id
+      JOIN moari.consignados c ON pc.consignado_id = c.id
+      WHERE pc.id = $1 AND pc.status = 'ativo'
+    `, [consignacaoId]);
+        if (consignacaoCheck.rowCount === 0) {
+            res.status(404).json({ error: 'Consignação não encontrada ou já finalizada' });
+            return;
+        }
+        const consignacao = consignacaoCheck.rows[0];
+        // Verificar se a quantidade vendida não excede a quantidade consignada
+        const quantidadeDisponivelParaVenda = consignacao.quantidade_consignada - (consignacao.quantidade_vendida || 0);
+        if (quantidadeVendida > quantidadeDisponivelParaVenda) {
+            res.status(400).json({
+                error: `Quantidade inválida. Disponível para venda: ${quantidadeDisponivelParaVenda}`
+            });
+            return;
+        }
+        const valorTotal = (precoVenda * quantidadeVendida) - desconto;
+        const comissaoValue = valorTotal * (consignacao.comissao / 100);
+        // 1. Criar registro de venda normal
+        const saleInsertQuery = `
+      INSERT INTO moari.sales (
+        customer_name, customer_email, customer_phone, payment_method, 
+        total_amount, discount_amount, notes, status, sale_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE)
+      RETURNING *
+    `;
+        const saleNotes = `${notes || ''}\n[VENDA CONSIGNADA] Produto: ${consignacao.product_name} | Consignado: ${consignacao.consignado_nome}`.trim();
+        const saleResult = await client.query(saleInsertQuery, [
+            customerName,
+            customerEmail || null,
+            customerPhone || null,
+            paymentMethod,
+            valorTotal,
+            desconto,
+            saleNotes,
+            'completed'
+        ]);
+        const sale = saleResult.rows[0];
+        // 2. Criar item da venda
+        const saleItemInsertQuery = `
+      INSERT INTO moari.sale_items (
+        sale_id, product_id, quantity, unit_price, total_price
+      ) VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+        await client.query(saleItemInsertQuery, [
+            sale.id,
+            consignacao.product_id,
+            quantidadeVendida,
+            precoVenda,
+            precoVenda * quantidadeVendida
+        ]);
+        // 3. Atualizar quantidade vendida na consignação
+        const novaQuantidadeVendida = (consignacao.quantidade_vendida || 0) + quantidadeVendida;
+        const statusConsignacao = novaQuantidadeVendida >= consignacao.quantidade_consignada ? 'vendido' : 'ativo';
+        await client.query(`
+      UPDATE moari.product_consignados 
+      SET quantidade_vendida = $1, status = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [novaQuantidadeVendida, statusConsignacao, consignacaoId]);
+        // 4. Se produto foi totalmente vendido, atualizar status do produto
+        if (statusConsignacao === 'vendido') {
+            await client.query('UPDATE moari.products SET status = $1 WHERE id = $2', ['sold', consignacao.product_id]);
+            console.log(`✅ Produto ${consignacao.product_id} marcado como vendido`);
+        }
+        await client.query("COMMIT");
+        console.log(`✅ Venda de consignado registrada com sucesso - Sale ID: ${sale.id}`);
+        res.status(201).json({
+            success: true,
+            sale: sale,
+            consignacao: {
+                id: consignacaoId,
+                quantidadeVendida: novaQuantidadeVendida,
+                quantidadeConsignada: consignacao.quantidade_consignada,
+                status: statusConsignacao,
+                produto: consignacao.product_name,
+                consignado: consignacao.consignado_nome,
+                comissao: comissaoValue
+            },
+            message: `Venda registrada com sucesso! ${statusConsignacao === 'vendido' ? 'Produto totalmente vendido.' : 'Produto parcialmente vendido.'}`
+        });
+    }
+    catch (error) {
+        await client.query("ROLLBACK");
+        console.error('❌ Erro ao registrar venda de consignado:', error);
+        handleDatabaseError(error, res);
+    }
+    finally {
+        client.release();
+    }
+});
 // GET /sales/:id - Buscar venda específica
 router.get("/sales/:id", (async (req, res) => {
     const client = await pool.connect();
@@ -604,13 +907,84 @@ router.get("/debug-vendas-routes", (req, res) => {
         "GET /api/sales/:id - Buscar venda específica",
         "GET /api/next-sale-id - Próximo ID",
         "GET /api/test-vendas - Teste de conexão",
-        "GET /api/debug-vendas-routes - Esta rota"
+        "GET /api/debug-vendas-routes - Esta rota",
+        "GET /api/consignados-vendas/disponiveis - Listar produtos consignados para venda",
+        "POST /api/consignados-vendas/registrar - Venda de produto consignado"
     ];
     res.json({
         message: "Rotas de vendas disponíveis:",
         routes: routes,
         totalRoutes: routes.length
     });
+});
+// ==================== ROTA PARA VENDA DE CONSIGNADOS ====================
+// GET /sales/consignados-disponiveis - Listar produtos consignados disponíveis para venda
+router.get("/sales/consignados-disponiveis", async (req, res) => {
+    const client = await pool.connect();
+    try {
+        console.log('📋 Listando produtos consignados disponíveis para venda...');
+        const { search } = req.query;
+        let queryParams = [];
+        let conditions = ['pc.status = $1'];
+        queryParams.push('ativo');
+        // Adicionar filtro de busca se fornecido
+        if (search && search.toString().trim() !== '') {
+            const searchTerm = `%${search}%`;
+            queryParams.push(searchTerm, searchTerm, searchTerm);
+            conditions.push(`(
+        p.name ILIKE $${queryParams.length - 2} OR 
+        p.code ILIKE $${queryParams.length - 1} OR
+        c.nome ILIKE $${queryParams.length}
+      )`);
+        }
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+        const query = `
+      SELECT 
+        pc.id as consignacao_id,
+        pc.product_id,
+        pc.quantidade_consignada,
+        pc.quantidade_vendida,
+        pc.valor_combinado,
+        pc.data_consignacao,
+        pc.observacoes,
+        (pc.quantidade_consignada - COALESCE(pc.quantidade_vendida, 0)) as quantidade_disponivel,
+        p.name as product_name,
+        p.code as product_code,
+        p.base_price,
+        p.category,
+        c.id as consignado_id,
+        c.nome as consignado_nome,
+        c.contato as consignado_contato,
+        c.telefone as consignado_telefone,
+        c.cidade as consignado_cidade,
+        c.estado as consignado_estado,
+        c.comissao,
+        array_agg(pi.image_url ORDER BY pi.order_index) FILTER (WHERE pi.image_url IS NOT NULL) as images
+      FROM moari.product_consignados pc
+      JOIN moari.products p ON pc.product_id = p.id
+      JOIN moari.consignados c ON pc.consignado_id = c.id
+      LEFT JOIN moari.product_images pi ON p.id = pi.product_id
+      ${whereClause}
+      GROUP BY pc.id, p.id, c.id
+      HAVING (pc.quantidade_consignada - COALESCE(pc.quantidade_vendida, 0)) > 0
+      ORDER BY pc.created_at DESC
+    `;
+        debugQuery(query, queryParams);
+        const result = await client.query(query, queryParams);
+        console.log(`✅ Encontrados ${result.rows.length} produtos consignados disponíveis para venda`);
+        res.json({
+            success: true,
+            consignados: result.rows,
+            total: result.rows.length
+        });
+    }
+    catch (error) {
+        console.error('❌ Erro ao listar produtos consignados disponíveis:', error);
+        handleDatabaseError(error, res);
+    }
+    finally {
+        client.release();
+    }
 });
 export default router;
 //# sourceMappingURL=vendasRoutes.js.map

@@ -158,16 +158,28 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
     const precoBase = parseFloat(produto.precoBase);
     const margem = parseFloat(produto.margemLucro);
 
-    if (!isNaN(precoBase) && !isNaN(margem)) {
-      const precoSugerido = precoBase * (1 + margem / 100);
-      const precoFinal = Math.ceil(precoSugerido * 100) / 100;
+    if (!isNaN(precoBase) && !isNaN(margem) && precoBase > 0 && margem >= 0) {
+      const precoSugerido = precoBase + (precoBase * margem / 100);
+      const precoFinal = Math.round(precoSugerido * 100) / 100;
 
       setAlertaPreco({
         tipo: "info",
-        mensagem: `Preço sugerido: R$ ${precoFinal.toFixed(2)}`,
+        mensagem: `Preço sugerido: R$ ${precoFinal.toFixed(2)} (Base: R$ ${precoBase.toFixed(2)} + ${margem}% de margem)`,
       });
+    } else if (precoBase > 0 && margem === 0) {
+      setAlertaPreco({
+        tipo: "info",
+        mensagem: `Preço sugerido: R$ ${precoBase.toFixed(2)} (sem margem de lucro)`,
+      });
+    } else {
+      setAlertaPreco(null);
     }
   }, [produto.precoBase, produto.margemLucro]);
+
+  // Calcular preço automaticamente quando mudar preço base ou margem
+  useEffect(() => {
+    calcularPrecoSugerido();
+  }, [calcularPrecoSugerido]);
 
   // NOVA FUNÇÃO PARA LIDAR COM SELEÇÃO DE MATERIAIS
   const handleMaterialChange = (material: string) => {
@@ -269,6 +281,12 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
       const numValue = parseFloat(value);
       if (isNaN(numValue) || numValue < 0) {
         validatedValue = "0";
+      } else if (name === "margemLucro" && numValue > 500) {
+        validatedValue = "500";
+        setAlertaPreco({
+          tipo: "warning",
+          mensagem: "A margem de lucro não pode exceder 500%"
+        });
       } else {
         validatedValue = numValue.toString();
       }
@@ -411,44 +429,7 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                 </select>
               </div>
 
-              {/* Dropdown de Fornecedores */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fornecedor
-                </label>
-                <select
-                  name="fornecedor"
-                  value={produto.fornecedor}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 p-2"
-                >
-                  <option value="">Selecione o fornecedor...</option>
-                  {fornecedores.map((fornecedor) => (
-                    <option key={fornecedor.id} value={fornecedor.id}>
-                      {fornecedor.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* NOVOS CAMPOS: Quantidade e Data de Compra */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantidade em Estoque
-                </label>
-                <input
-                  type="number"
-                  name="quantidade"
-                  value={produto.quantidade}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 p-2"
-                  min="0"
-                  max="9999"
-                  step="1"
-                />
-                <span className="text-xs text-gray-500">Máximo: 9.999 unidades</span>
-              </div>
-
+              {/* Data de Compra */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Data de Compra
@@ -492,24 +473,24 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
             <div className="space-y-4">
               {/* SEÇÃO DE MATERIAIS ATUALIZADA */}
               <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo de Material
-              </label>
-              <select
-                name="tipoMaterial"
-                value={produto.tipoMaterial}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-gray-300 p-2"
-                required>
-                <option value="">Selecione...</option>
-                <option value="Inox">Inox</option>
-                <option value="Ouro">Ouro</option>
-                <option value="Platina">Platina</option>
-                <option value="Prata">Prata</option>
-                <option value="Prata 925">Prata 925</option>
-                <option value="Ródio Branco">Ródio Branco</option>
-                <option value="Ródio Negro">Ródio Negro</option>
-              </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Material
+                </label>
+                <select
+                  name="tipoMaterial"
+                  value={produto.tipoMaterial}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-gray-300 p-2"
+                  required>
+                  <option value="">Selecione...</option>
+                  <option value="Inox">Inox</option>
+                  <option value="Ouro">Ouro</option>
+                  <option value="Platina">Platina</option>
+                  <option value="Prata">Prata</option>
+                  <option value="Prata 925">Prata 925</option>
+                  <option value="Ródio Branco">Ródio Branco</option>
+                  <option value="Ródio Negro">Ródio Negro</option>
+                </select>
               </div>
 
               <div>
@@ -523,6 +504,44 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                   onChange={handleChange}
                   className="w-full rounded-lg border border-gray-300 p-2"
                 />
+              </div>
+
+              {/* Dropdown de Fornecedores */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fornecedor
+                </label>
+                <select
+                  name="fornecedor"
+                  value={produto.fornecedor}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-gray-300 p-2"
+                >
+                  <option value="">Selecione o fornecedor...</option>
+                  {fornecedores.map((fornecedor) => (
+                    <option key={fornecedor.id} value={fornecedor.id}>
+                      {fornecedor.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quantidade em Estoque */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantidade em Estoque
+                </label>
+                <input
+                  type="number"
+                  name="quantidade"
+                  value={produto.quantidade}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-gray-300 p-2"
+                  min="0"
+                  max="9999"
+                  step="1"
+                />
+                <span className="text-xs text-gray-500">Máximo: 9.999 unidades</span>
               </div>
 
               <div>
@@ -605,6 +624,8 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                   onChange={handleChange}
                   className="w-full rounded-lg border border-gray-300 p-2"
                   step="0.01"
+                  min="0"
+                  title="Preço base do produto"
                 />
               </div>
 
@@ -618,13 +639,20 @@ const CadastroProdutos: React.FC<CadastroProdutosProps> = ({
                   value={produto.margemLucro}
                   onChange={handleChange}
                   className="w-full rounded-lg border border-gray-300 p-2"
+                  min="0"
+                  max="500"
+                  step="0.1"
+                  title="Margem de lucro em porcentagem"
                 />
+                <span className="text-xs text-gray-500">Máximo: 500%</span>
               </div>
             </div>
 
             {alertaPreco && (
-              <Alert className="mt-4">
-                <AlertDescription>{alertaPreco.mensagem}</AlertDescription>
+              <Alert className={`mt-4 ${alertaPreco.tipo === 'info' ? 'border-blue-200 bg-blue-50' : 'border-yellow-200 bg-yellow-50'}`}>
+                <AlertDescription className={alertaPreco.tipo === 'info' ? 'text-blue-800' : 'text-yellow-800'}>
+                  {alertaPreco.mensagem}
+                </AlertDescription>
               </Alert>
             )}
           </div>

@@ -44,22 +44,4 @@ api.interceptors.response.use((response) => response, (error) => {
     }
     return Promise.reject(error);
 });
-const combinacoes = []; // Certifique-se de que este array esteja definido em algum lugar do seu código
-const totalArquivos = 50;
-const tamanhoPorArquivo = Math.ceil(combinacoes.length / totalArquivos);
-for (let i = 0; i < totalArquivos; i++) {
-    const inicio = i * tamanhoPorArquivo;
-    const fim = inicio + tamanhoPorArquivo;
-    const parte = combinacoes.slice(inicio, fim);
-    const blob = new Blob([parte.join('\n')], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    // Cria um link para download automático
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `combinacoes_parte_${i + 1}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
 export default api;

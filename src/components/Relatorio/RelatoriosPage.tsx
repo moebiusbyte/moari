@@ -94,6 +94,7 @@ interface PaymentMethod {
 const RelatoriosPage = () => {
   // Estados
   const [periodoSelecionado, setPeriodoSelecionado] = useState("month");
+  const [tipoVendaSelecionado, setTipoVendaSelecionado] = useState("all"); // Novo estado para filtrar tipo de venda
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [salesEvolution, setSalesEvolution] = useState<SalesEvolution[]>([]);
@@ -121,7 +122,7 @@ const RelatoriosPage = () => {
       const groupBy = periodoSelecionado === 'week' ? 'day' : 
                      periodoSelecionado === 'month' ? 'day' : 'month';
       
-      const response = await api.get(`/reports/sales-evolution?period=${periodoSelecionado}&groupBy=${groupBy}`);
+      const response = await api.get(`/reports/sales-evolution?period=${periodoSelecionado}&groupBy=${groupBy}&sale_type=${tipoVendaSelecionado}`);
       setSalesEvolution(response.data.dados || []);
       console.log('📈 Evolução de vendas carregada:', response.data);
     } catch (error) {
@@ -133,9 +134,10 @@ const RelatoriosPage = () => {
   // Função para buscar performance dos produtos
   const fetchProductsPerformance = async () => {
     try {
-      const response = await api.get(`/reports/products-performance?period=${periodoSelecionado}&limit=10`);
+      const response = await api.get(`/reports/products-performance?period=${periodoSelecionado}&limit=10&sale_type=${tipoVendaSelecionado}`);
       setTopProducts(response.data.topProdutos || []);
       console.log('🏆 Performance de produtos carregada:', response.data);
+      console.log('🎯 Tipo de venda aplicado:', tipoVendaSelecionado);
     } catch (error) {
       console.error('❌ Erro ao carregar performance de produtos:', error);
       setTopProducts([]);
@@ -145,9 +147,10 @@ const RelatoriosPage = () => {
   // Função para buscar métodos de pagamento
   const fetchPaymentMethods = async () => {
     try {
-      const response = await api.get(`/reports/payment-methods?period=${periodoSelecionado}`);
+      const response = await api.get(`/reports/payment-methods?period=${periodoSelecionado}&sale_type=${tipoVendaSelecionado}`);
       setPaymentMethods(response.data.metodosPageamento || []);
       console.log('💳 Métodos de pagamento carregados:', response.data);
+      console.log('🎯 Tipo de venda aplicado:', tipoVendaSelecionado);
     } catch (error) {
       console.error('❌ Erro ao carregar métodos de pagamento:', error);
       setPaymentMethods([]);
@@ -172,10 +175,10 @@ const RelatoriosPage = () => {
     }
   };
 
-  // Carregar dados quando mudar o período
+  // Carregar dados quando mudar o período, aba ativa ou tipo de venda
   useEffect(() => {
     loadAllData();
-  }, [periodoSelecionado]);
+  }, [periodoSelecionado, tipoVendaSelecionado]);
 
   // Função para formatar moeda
   const formatCurrency = (value: number) => {
@@ -229,11 +232,22 @@ const RelatoriosPage = () => {
             className="px-4 py-2 border rounded-lg text-gray-600"
             value={periodoSelecionado}
             onChange={(e) => setPeriodoSelecionado(e.target.value)}
+            title="Selecionar período"
           >
             <option value="week">Última Semana</option>
             <option value="month">Último Mês</option>
             <option value="quarter">Último Trimestre</option>
             <option value="year">Último Ano</option>
+          </select>
+          <select
+            className="px-4 py-2 border rounded-lg text-gray-600"
+            value={tipoVendaSelecionado}
+            onChange={(e) => setTipoVendaSelecionado(e.target.value)}
+            title="Filtrar por tipo de venda"
+          >
+            <option value="all">Todas as Vendas</option>
+            <option value="normal">Vendas Normais</option>
+            <option value="consignado">Vendas Consignadas</option>
           </select>
           <button 
             onClick={loadAllData}
@@ -253,8 +267,10 @@ const RelatoriosPage = () => {
         </div>
       </div>
 
-      {/* Cards de Métricas Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      {/* Conteúdo dos Relatórios */}
+        <>
+          {/* Cards de Métricas Principais */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         {/* Faturamento Total */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
@@ -529,6 +545,7 @@ const RelatoriosPage = () => {
           </div>
         </div>
       </div>
+        </>
     </div>
   );
 }; 

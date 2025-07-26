@@ -12,9 +12,11 @@ import {
   Calendar,
   Users,
   X,
-  Eye
+  Eye,
+  Package
 } from "lucide-react";
 import FormularioVenda from "./FormularioVenda";
+import FormularioVendaConsignado from "./FormularioVendaConsignado";
 import EditSaleModal from './EditSaleModal';
 import DeleteSaleModal from './DeleteSaleModal';
 import SaleDetailsModal from './SaleDetailsModal';
@@ -83,6 +85,7 @@ const VendasPage = () => {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isConsignadoModalOpen, setIsConsignadoModalOpen] = useState(false);
 
   // Estados para dados e paginação
   const [sales, setSales] = useState<Sale[]>([]);
@@ -301,6 +304,41 @@ const VendasPage = () => {
     }
   };
 
+  // Handler para salvar venda de consignado
+  const handleSaveVendaConsignado = async (vendaData: any) => {
+    try {
+      console.log('\n💰 === DEBUG VENDA CONSIGNADO ===');
+      console.log('🎯 Dados recebidos:', JSON.stringify(vendaData, null, 2));
+      console.log('🌐 URL da API:', '/consignados-vendas/registrar');
+      console.log('📡 Método:', 'POST');
+      console.log('================================\n');
+
+      const response = await api.post('/consignados-vendas/registrar', vendaData);
+      
+      console.log('\n✅ === RESPOSTA DA API ===');
+      console.log('Status:', response.status);
+      console.log('Data:', response.data);
+      console.log('========================\n');
+      
+      alert(response.data.message || 'Venda de consignado registrada com sucesso!');
+      await fetchSales(); // Recarregar a lista
+      setIsConsignadoModalOpen(false);
+      
+    } catch (error: any) {
+      console.error('\n❌ === ERRO VENDA CONSIGNADO ===');
+      console.error('Error object:', error);
+      
+      if (error.response) {
+        console.error('Error response:', error.response);
+        console.error('Error data:', error.response.data);
+        console.error('Error status:', error.response.status);
+      }
+      
+      console.error('==============================\n');
+      throw error; // Re-throw para que o FormularioVendaConsignado possa tratar
+    }
+  };
+
   // Função para formatar data
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR');
@@ -348,12 +386,20 @@ const VendasPage = () => {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-semibold text-gray-800">Vendas</h1>
-          <button
-            onClick={handleNewSale}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <Plus size={20} className="mr-2" />
-            Nova Venda
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsConsignadoModalOpen(true)}
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+              <Package size={20} className="mr-2" />
+              Venda Consignado
+            </button>
+            <button
+              onClick={handleNewSale}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <Plus size={20} className="mr-2" />
+              Nova Venda
+            </button>
+          </div>
         </div>
 
         {/* Cards de Estatísticas */}
@@ -622,6 +668,13 @@ const VendasPage = () => {
         />
       </Modal>
 
+      {/* Modal de Venda de Consignado */}
+      <FormularioVendaConsignado
+        isOpen={isConsignadoModalOpen}
+        onClose={() => setIsConsignadoModalOpen(false)}
+        onSave={handleSaveVendaConsignado}
+      />
+
       {/* Modal de Detalhes da Venda */}
       {selectedSale && detailsModalOpen && (
         <SaleDetailsModal
@@ -660,6 +713,13 @@ const VendasPage = () => {
           customerName={selectedSale.customer_name}
         />
       )}
+
+      {/* Modal de Venda de Consignado */}
+      <FormularioVendaConsignado
+        isOpen={isConsignadoModalOpen}
+        onClose={() => setIsConsignadoModalOpen(false)}
+        onSave={handleSaveVendaConsignado}
+      />
     </div>
   );
 };

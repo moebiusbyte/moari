@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { X, Calendar, Package, DollarSign, Info, Tag, MapPin, Shield, Camera, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Calendar, Package, DollarSign, Info, Tag, MapPin, Shield, Camera, ExternalLink, User, Phone, Mail, Clock } from 'lucide-react';
 import type { Product } from '../../types/product';
+import api from '../../../server/api/axiosConfig';
 
 interface ViewProductModalProps {
   isOpen: boolean;
@@ -8,8 +9,62 @@ interface ViewProductModalProps {
   product: Product;
 }
 
+interface ConsignacaoInfo {
+  hasConsignacao: boolean;
+  consignacao?: {
+    id: number;
+    dataConsignacao: string;
+    quantidadeConsignada: number;
+    valorCombinado: number;
+    observacoes?: string;
+    consignado: {
+      id: number;
+      nome: string;
+      contato?: string;
+      telefone?: string;
+      email?: string;
+      cidade?: string;
+      estado?: string;
+      endereco?: string;
+      ultimaEntrega?: string;
+    };
+    produto: {
+      nome: string;
+      codigo: string;
+    };
+  };
+}
+
 const ViewProductModal: React.FC<ViewProductModalProps> = ({ isOpen, onClose, product }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [consignacaoInfo, setConsignacaoInfo] = useState<ConsignacaoInfo | null>(null);
+  const [loadingConsignacao, setLoadingConsignacao] = useState(false);
+
+  // Buscar informações de consignação quando o modal abrir e o produto estiver consignado
+  useEffect(() => {
+    const fetchConsignacaoInfo = async () => {
+      if (!isOpen || !product || product.status !== 'consigned') {
+        setConsignacaoInfo(null);
+        return;
+      }
+
+      setLoadingConsignacao(true);
+      try {
+        console.log(`🔍 Buscando informações de consignação para produto ID: ${product.id}`);
+        const response = await api.get(`/products/${product.id}/consignacao-info`);
+        
+        console.log('📦 Resposta da API de consignação:', response.data);
+        setConsignacaoInfo(response.data);
+      } catch (error) {
+        console.error('❌ Erro ao buscar informações de consignação:', error);
+        setConsignacaoInfo({ hasConsignacao: false });
+      } finally {
+        setLoadingConsignacao(false);
+      }
+    };
+
+    fetchConsignacaoInfo();
+  }, [isOpen, product]);
 
   if (!isOpen || !product) return null;
 
@@ -77,6 +132,7 @@ const ViewProductModal: React.FC<ViewProductModalProps> = ({ isOpen, onClose, pr
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+            title="Fechar modal"
           >
             <X size={24} />
           </button>
@@ -259,6 +315,111 @@ const ViewProductModal: React.FC<ViewProductModalProps> = ({ isOpen, onClose, pr
                     : "Inativo"}
                 </span>
               </div>
+
+              {/* Informações de Consignação */}
+              {product.status === "consigned" && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                    <User size={20} />
+                    Informações de Consignação
+                  </h3>
+                  
+                  {loadingConsignacao ? (
+                    <div className="text-center py-4">
+                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <p className="text-blue-600 mt-2">Carregando informações...</p>
+                    </div>
+                  ) : consignacaoInfo?.hasConsignacao ? (
+                    <div className="space-y-4">
+                      {/* Informações do Consignado */}
+                      <div className="bg-white rounded-lg p-4 border border-blue-200">
+                        <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                          <User size={16} />
+                          Consignado para:
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-600">Nome:</span>
+                            <p className="text-gray-800 font-medium">{consignacaoInfo.consignacao?.consignado.nome}</p>
+                          </div>
+                          {consignacaoInfo.consignacao?.consignado.telefone && (
+                            <div>
+                              <span className="font-medium text-gray-600">Telefone:</span>
+                              <p className="text-gray-800 flex items-center gap-1">
+                                <Phone size={14} />
+                                {consignacaoInfo.consignacao.consignado.telefone}
+                              </p>
+                            </div>
+                          )}
+                          {consignacaoInfo.consignacao?.consignado.email && (
+                            <div>
+                              <span className="font-medium text-gray-600">Email:</span>
+                              <p className="text-gray-800 flex items-center gap-1">
+                                <Mail size={14} />
+                                {consignacaoInfo.consignacao.consignado.email}
+                              </p>
+                            </div>
+                          )}
+                          {(consignacaoInfo.consignacao?.consignado.cidade || consignacaoInfo.consignacao?.consignado.estado) && (
+                            <div>
+                              <span className="font-medium text-gray-600">Localização:</span>
+                              <p className="text-gray-800 flex items-center gap-1">
+                                <MapPin size={14} />
+                                {consignacaoInfo.consignacao?.consignado.cidade}
+                                {consignacaoInfo.consignacao?.consignado.cidade && consignacaoInfo.consignacao?.consignado.estado && ', '}
+                                {consignacaoInfo.consignacao?.consignado.estado}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Detalhes da Consignação */}
+                      <div className="bg-white rounded-lg p-4 border border-blue-200">
+                        <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                          <Package size={16} />
+                          Detalhes da Consignação:
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-600">Data da Consignação:</span>
+                            <p className="text-gray-800 flex items-center gap-1">
+                              <Clock size={14} />
+                              {formatDate(consignacaoInfo.consignacao?.dataConsignacao)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-600">Quantidade:</span>
+                            <p className="text-gray-800">{consignacaoInfo.consignacao?.quantidadeConsignada}</p>
+                          </div>
+                          {consignacaoInfo.consignacao?.valorCombinado && consignacaoInfo.consignacao.valorCombinado > 0 && (
+                            <div>
+                              <span className="font-medium text-gray-600">Valor Combinado:</span>
+                              <p className="text-gray-800 flex items-center gap-1">
+                                <DollarSign size={14} />
+                                {formatCurrency(Number(consignacaoInfo.consignacao.valorCombinado))}
+                              </p>
+                            </div>
+                          )}
+                          {consignacaoInfo.consignacao?.observacoes && (
+                            <div className="md:col-span-2">
+                              <span className="font-medium text-gray-600">Observações:</span>
+                              <p className="text-gray-800">{consignacaoInfo.consignacao.observacoes}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <div className="text-yellow-600 bg-yellow-100 rounded-lg p-3">
+                        <p className="font-medium">⚠️ Produto marcado como consignado</p>
+                        <p className="text-sm mt-1">Mas não foram encontradas informações de consignação ativa</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Descrição */}
               {product.description && (
