@@ -91,7 +91,11 @@ router.get("/reports/overview", async (req, res) => {
           COUNT(CASE WHEN status = 'completed' THEN 1 END) as vendas_concluidas,
           COUNT(CASE WHEN status = 'pending' THEN 1 END) as vendas_pendentes,
           COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as vendas_canceladas,
+          COUNT(CASE WHEN status = 'completed' AND notes LIKE '%[VENDA CONSIGNADA]%' THEN 1 END) as vendas_consignadas,
+          COUNT(CASE WHEN status = 'completed' AND (notes IS NULL OR notes NOT LIKE '%[VENDA CONSIGNADA]%') THEN 1 END) as vendas_normais,
           COALESCE(SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END), 0) as receita_total,
+          COALESCE(SUM(CASE WHEN status = 'completed' AND notes LIKE '%[VENDA CONSIGNADA]%' THEN total_amount ELSE 0 END), 0) as receita_consignada,
+          COALESCE(SUM(CASE WHEN status = 'completed' AND (notes IS NULL OR notes NOT LIKE '%[VENDA CONSIGNADA]%') THEN total_amount ELSE 0 END), 0) as receita_normal,
           COALESCE(AVG(CASE WHEN status = 'completed' THEN total_amount END), 0) as ticket_medio,
           COUNT(CASE WHEN DATE(sale_date) = CURRENT_DATE AND status = 'completed' THEN 1 END) as vendas_hoje,
           COALESCE(SUM(CASE WHEN DATE(sale_date) = CURRENT_DATE AND status = 'completed' THEN total_amount ELSE 0 END), 0) as receita_hoje
@@ -183,8 +187,16 @@ router.get("/reports/sales-evolution", async (req, res) => {
     const client = await pool.connect();
     try {
         console.log("📈 Gerando relatório de evolução de vendas...");
-        const { period = 'month', groupBy = 'day' } = req.query;
+        const { period = 'month', groupBy = 'day', sale_type = 'all' } = req.query;
         const dateRange = getDateRange(period);
+        // Filtro de tipo de venda
+        let saleTypeFilter = "";
+        if (sale_type === 'normal') {
+            saleTypeFilter = "AND (notes IS NULL OR notes NOT LIKE '%[VENDA CONSIGNADA]%')";
+        }
+        else if (sale_type === 'consignado') {
+            saleTypeFilter = "AND notes LIKE '%[VENDA CONSIGNADA]%'";
+        }
         let dateFormat, dateGroup;
         switch (groupBy) {
             case 'hour':
@@ -217,6 +229,7 @@ router.get("/reports/sales-evolution", async (req, res) => {
         COALESCE(AVG(CASE WHEN status = 'completed' THEN total_amount END), 0) as ticket_medio
       FROM moari.sales 
       WHERE sale_date >= $1::date AND sale_date <= $2::date + INTERVAL '1 day'
+        ${saleTypeFilter}
       GROUP BY ${dateGroup}
       ORDER BY data_ordenacao ASC
     `;
@@ -232,6 +245,7 @@ router.get("/reports/sales-evolution", async (req, res) => {
         res.json({
             periodo: dateRange,
             agrupamento: groupBy,
+            tipoVenda: sale_type,
             dados: evolution
         });
     }
@@ -248,8 +262,31 @@ router.get("/reports/products-performance", async (req, res) => {
     const client = await pool.connect();
     try {
         console.log("🏆 Gerando relatório de performance de produtos...");
-        const { period = 'month', limit = 20 } = req.query;
+        const { period = 'month', limit = 20, sale_type = 'all' } = req.query;
         const dateRange = getDateRange(period);
+        // Adicionar filtro baseado no tipo de venda
+        let saleTypeFilter = '';
+        if (sale_type === 'normal') {
+            saleTypeFilter = "AND (s.notes IS NULL OR s.notes NOT LIKE '%[VENDA CONSIGNADA]%')";
+        }
+        else if (sale_type === 'consignado') {
+            saleTypeFilter = "AND s.notes LIKE '%[VENDA CONSIGNADA]%'";
+        }
+        // Para 'all' não adiciona filtro
+        // Definir contadores condicionais baseados no filtro
+        let vendasConsignadasCounter, vendasNormaisCounter;
+        if (sale_type === 'consignado') {
+            vendasConsignadasCounter = 'COUNT(si.id)';
+            vendasNormaisCounter = '0';
+        }
+        else if (sale_type === 'normal') {
+            vendasConsignadasCounter = '0';
+            vendasNormaisCounter = 'COUNT(si.id)';
+        }
+        else {
+            vendasConsignadasCounter = "COUNT(CASE WHEN s.notes LIKE '%[VENDA CONSIGNADA]%' THEN 1 END)";
+            vendasNormaisCounter = "COUNT(CASE WHEN (s.notes IS NULL OR s.notes NOT LIKE '%[VENDA CONSIGNADA]%') THEN 1 END)";
+        }
         const performanceQuery = `
       SELECT 
         p.id,
@@ -263,15 +300,18 @@ router.get("/reports/products-performance", async (req, res) => {
         SUM(si.total_price) as receita_gerada,
         AVG(si.unit_price) as preco_medio_venda,
         COUNT(DISTINCT s.id) as numero_vendas,
-        COALESCE(SUM(si.quantity), 0) as unidades_vendidas
+        COALESCE(SUM(si.quantity), 0) as unidades_vendidas,
+        ${vendasConsignadasCounter} as vendas_consignadas,
+        ${vendasNormaisCounter} as vendas_normais
       FROM moari.products p
       LEFT JOIN moari.sale_items si ON p.id = si.product_id
       LEFT JOIN moari.sales s ON si.sale_id = s.id 
         AND s.status = 'completed' 
         AND s.sale_date >= $1::date 
         AND s.sale_date <= $2::date + INTERVAL '1 day'
+        ${saleTypeFilter}
       GROUP BY p.id, p.code, p.name, p.category, p.base_price, p.profit_margin, p.quantity
-      ORDER BY receita_gerada DESC NULLS LAST
+      ${sale_type === 'all' ? 'ORDER BY receita_gerada DESC NULLS LAST' : 'HAVING SUM(si.total_price) > 0 ORDER BY receita_gerada DESC'}
       LIMIT $3
     `;
         debugQuery(performanceQuery, [dateRange.startDate, dateRange.endDate, limit]);
@@ -288,6 +328,8 @@ router.get("/reports/products-performance", async (req, res) => {
             vendas: {
                 unidadesVendidas: parseInt(row.unidades_vendidas) || 0,
                 numeroVendas: parseInt(row.numero_vendas) || 0,
+                vendasNormais: parseInt(row.vendas_normais) || 0,
+                vendasConsignadas: parseInt(row.vendas_consignadas) || 0,
                 receitaGerada: parseFloat(row.receita_gerada) || 0,
                 precoMedioVenda: parseFloat(row.preco_medio_venda) || 0
             },
@@ -304,13 +346,16 @@ router.get("/reports/products-performance", async (req, res) => {
         COUNT(DISTINCT p.id) as total_produtos,
         COALESCE(SUM(si.total_price), 0) as receita_categoria,
         COALESCE(SUM(si.quantity), 0) as unidades_vendidas,
-        COUNT(DISTINCT s.id) as numero_vendas
+        COUNT(DISTINCT s.id) as numero_vendas,
+        COUNT(CASE WHEN s.notes LIKE '%[VENDA CONSIGNADA]%' THEN 1 END) as vendas_consignadas,
+        COUNT(CASE WHEN (s.notes IS NULL OR s.notes NOT LIKE '%[VENDA CONSIGNADA]%') THEN 1 END) as vendas_normais
       FROM moari.products p
       LEFT JOIN moari.sale_items si ON p.id = si.product_id
       LEFT JOIN moari.sales s ON si.sale_id = s.id 
         AND s.status = 'completed' 
         AND s.sale_date >= $1::date 
         AND s.sale_date <= $2::date + INTERVAL '1 day'
+        ${saleTypeFilter}
       GROUP BY p.category
       ORDER BY receita_categoria DESC
     `;
@@ -320,10 +365,13 @@ router.get("/reports/products-performance", async (req, res) => {
             totalProdutos: parseInt(row.total_produtos),
             receitaCategoria: parseFloat(row.receita_categoria) || 0,
             unidadesVendidas: parseInt(row.unidades_vendidas) || 0,
-            numeroVendas: parseInt(row.numero_vendas) || 0
+            numeroVendas: parseInt(row.numero_vendas) || 0,
+            vendasNormais: parseInt(row.vendas_normais) || 0,
+            vendasConsignadas: parseInt(row.vendas_consignadas) || 0
         }));
         res.json({
             periodo: dateRange,
+            tipoVenda: sale_type,
             topProdutos: performance,
             categorias: categorias
         });
@@ -336,18 +384,111 @@ router.get("/reports/products-performance", async (req, res) => {
         client.release();
     }
 });
+// GET /reports/consignado-sales - Relatório específico de vendas consignadas
+router.get("/reports/consignado-sales", async (req, res) => {
+    const client = await pool.connect();
+    try {
+        console.log("🤝 Gerando relatório de vendas consignadas...");
+        const { period = 'month' } = req.query;
+        const dateRange = getDateRange(period);
+        const consignadoQuery = `
+      SELECT 
+        s.id as sale_id,
+        s.sale_date,
+        s.total_amount,
+        s.payment_method,
+        s.customer_name,
+        s.notes,
+        si.product_id,
+        si.quantity,
+        si.unit_price,
+        si.total_price,
+        p.name as product_name,
+        p.code as product_code,
+        p.category,
+        c.nome as consignor_name,
+        c.comissao as commission_percentage,
+        ROUND(si.total_price * c.comissao / 100, 2) as commission_amount
+      FROM moari.sales s
+      INNER JOIN moari.sale_items si ON s.id = si.sale_id
+      INNER JOIN moari.products p ON si.product_id = p.id
+      LEFT JOIN moari.product_consignados pc ON p.id = pc.product_id
+      LEFT JOIN moari.consignados c ON pc.consignado_id = c.id
+      WHERE s.status = 'completed'
+        AND s.notes LIKE '%[VENDA CONSIGNADA]%'
+        AND s.sale_date >= $1::date 
+        AND s.sale_date <= $2::date + INTERVAL '1 day'
+      ORDER BY s.sale_date DESC, s.id
+    `;
+        debugQuery(consignadoQuery, [dateRange.startDate, dateRange.endDate]);
+        const result = await client.query(consignadoQuery, [dateRange.startDate, dateRange.endDate]);
+        const vendas = result.rows.map(row => ({
+            venda: {
+                id: row.sale_id,
+                data: row.sale_date,
+                valor: parseFloat(row.total_amount),
+                metodoPagamento: row.payment_method,
+                cliente: row.customer_name,
+                notas: row.notes
+            },
+            produto: {
+                id: row.product_id,
+                nome: row.product_name,
+                codigo: row.product_code,
+                categoria: row.category,
+                quantidade: parseInt(row.quantity),
+                precoUnitario: parseFloat(row.unit_price),
+                precoTotal: parseFloat(row.total_price)
+            },
+            consignado: {
+                nome: row.consignor_name,
+                percentualComissao: parseFloat(row.commission_percentage) || 0,
+                valorComissao: parseFloat(row.commission_amount) || 0
+            }
+        }));
+        // Estatísticas resumidas
+        const resumo = {
+            totalVendas: vendas.length,
+            receitaTotal: vendas.reduce((sum, v) => sum + v.venda.valor, 0),
+            comissaoTotal: vendas.reduce((sum, v) => sum + v.consignado.valorComissao, 0),
+            ticketMedio: vendas.length > 0 ? vendas.reduce((sum, v) => sum + v.venda.valor, 0) / vendas.length : 0
+        };
+        res.json({
+            periodo: dateRange,
+            resumo,
+            vendas
+        });
+    }
+    catch (error) {
+        console.error("❌ Erro ao gerar relatório de vendas consignadas:", error);
+        handleDatabaseError(error, res);
+    }
+    finally {
+        client.release();
+    }
+});
 // GET /reports/payment-methods - Análise dos métodos de pagamento
 router.get("/reports/payment-methods", async (req, res) => {
     const client = await pool.connect();
     try {
         console.log("💳 Gerando relatório de métodos de pagamento...");
-        const { period = 'month' } = req.query;
+        const { period = 'month', sale_type = 'all' } = req.query;
         const dateRange = getDateRange(period);
+        // Adicionar filtro baseado no tipo de venda
+        let saleTypeFilter = '';
+        if (sale_type === 'normal') {
+            saleTypeFilter = "AND (notes IS NULL OR notes NOT LIKE '%[VENDA CONSIGNADA]%')";
+        }
+        else if (sale_type === 'consignado') {
+            saleTypeFilter = "AND notes LIKE '%[VENDA CONSIGNADA]%'";
+        }
         const paymentQuery = `
       SELECT 
         payment_method,
         COUNT(*) as quantidade_vendas,
         COUNT(CASE WHEN status = 'completed' THEN 1 END) as vendas_concluidas,
+        COUNT(CASE WHEN status = 'completed' AND notes LIKE '%[VENDA CONSIGNADA]%' THEN 1 END) as vendas_consignadas,
+        COUNT(CASE WHEN status = 'completed' AND (notes IS NULL OR notes NOT LIKE '%[VENDA CONSIGNADA]%') THEN 1 END) as vendas_normais,
         COALESCE(SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END), 0) as receita_total,
         COALESCE(AVG(CASE WHEN status = 'completed' THEN total_amount END), 0) as ticket_medio,
         ROUND(
@@ -359,6 +500,7 @@ router.get("/reports/payment-methods", async (req, res) => {
         ) as percentual_receita
       FROM moari.sales 
       WHERE sale_date >= $1::date AND sale_date <= $2::date + INTERVAL '1 day'
+        ${saleTypeFilter}
       GROUP BY payment_method
       ORDER BY receita_total DESC
     `;
@@ -368,6 +510,8 @@ router.get("/reports/payment-methods", async (req, res) => {
             metodo: row.payment_method,
             quantidadeVendas: parseInt(row.quantidade_vendas),
             vendasConcluidas: parseInt(row.vendas_concluidas),
+            vendasNormais: parseInt(row.vendas_normais) || 0,
+            vendasConsignadas: parseInt(row.vendas_consignadas) || 0,
             receitaTotal: parseFloat(row.receita_total),
             ticketMedio: parseFloat(row.ticket_medio),
             percentualVendas: parseFloat(row.percentual_vendas),
@@ -375,6 +519,7 @@ router.get("/reports/payment-methods", async (req, res) => {
         }));
         res.json({
             periodo: dateRange,
+            tipoVenda: sale_type,
             metodosPageamento: metodosPageamento
         });
     }
@@ -520,13 +665,48 @@ router.get("/reports/test", (req, res) => {
         availableRoutes: [
             "GET /api/reports/overview - Visão geral consolidada",
             "GET /api/reports/sales-evolution - Evolução das vendas",
-            "GET /api/reports/products-performance - Performance dos produtos",
+            "GET /api/reports/products-performance - Performance dos produtos (parâmetro: sale_type=all|normal|consignado)",
+            "GET /api/reports/consignado-sales - Relatório específico de vendas consignadas",
             "GET /api/reports/payment-methods - Análise métodos de pagamento",
             "GET /api/reports/stock-analysis - Análise de estoque",
             "GET /api/reports/debug-sales - Debug das vendas",
             "GET /api/reports/test - Esta rota de teste"
         ]
     });
+});
+// Endpoint de debug para verificar vendas de hoje
+router.get('/debug-sales-today', async (req, res) => {
+    try {
+        const query = `
+      SELECT 
+        id, 
+        total_amount, 
+        notes, 
+        status, 
+        sale_date,
+        CASE 
+          WHEN notes LIKE '%[VENDA CONSIGNADA]%' THEN 'consignado'
+          ELSE 'normal'
+        END as tipo_venda
+      FROM moari.sales 
+      WHERE DATE(sale_date) = CURRENT_DATE 
+      ORDER BY id
+    `;
+        debugQuery(query);
+        const result = await pool.query(query);
+        res.json({
+            success: true,
+            vendas_hoje: result.rows,
+            total: result.rows.length,
+            resumo: {
+                normais: result.rows.filter(row => !row.notes || !row.notes.includes('[VENDA CONSIGNADA]')).length,
+                consignados: result.rows.filter(row => row.notes && row.notes.includes('[VENDA CONSIGNADA]')).length
+            }
+        });
+    }
+    catch (error) {
+        handleDatabaseError(error, res);
+    }
 });
 export default router;
 //# sourceMappingURL=relatoriosRoutes.js.map

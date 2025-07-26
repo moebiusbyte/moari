@@ -9,6 +9,7 @@ interface Produto {
   nome: string;
   status: string;
   preco: number;
+  quantity: number; // Adicionar campo de quantidade
 }
 
 interface ProdutoConsignado {
@@ -82,10 +83,14 @@ const CadastroConsignados: React.FC<CadastroConsignadosProps> = ({
       try {
         const response = await api.get('/products');
         console.log("Produtos recebidos:", response.data.products);
-        // Para ver os nomes:
-        response.data.products.forEach((p: any) => console.log("Produto:", p.name, p.nome, p.code));
-        // Remova qualquer filtro restritivo aqui!
-        setProdutos(response.data.products); // Use o array completo
+        
+        // Filtrar apenas produtos ativos e com quantidade disponível
+        const produtosDisponiveis = response.data.products.filter((p: any) => 
+          p.status === 'active' && (p.quantity || 0) > 0
+        );
+        
+        console.log("Produtos disponíveis para consignação:", produtosDisponiveis);
+        setProdutos(produtosDisponiveis);
       } catch (err) {
         setError("Erro ao carregar produtos.");
       } finally {
@@ -104,6 +109,14 @@ const CadastroConsignados: React.FC<CadastroConsignadosProps> = ({
   };
 
   const handleProdutoChange = (product_id: number, field: keyof ProdutoConsignado, value: number) => {
+    const produto = produtos.find(p => p.id === product_id);
+    
+    // Validar quantidade máxima
+    if (field === 'quantidade' && produto && value > (produto.quantity || 0)) {
+      alert(`Quantidade máxima disponível para "${produto.name || produto.nome}": ${produto.quantity || 0}`);
+      return;
+    }
+    
     setProdutosSelecionados(
       produtosSelecionados.map(p =>
         p.product_id === product_id ? { ...p, [field]: value } : p
@@ -177,33 +190,51 @@ const CadastroConsignados: React.FC<CadastroConsignadosProps> = ({
                   <div className="flex gap-2 mb-2 font-semibold text-sm items-center">
                     <span className="w-10 text-center"></span>
                     <span className="flex-1 text-left">Produto</span>
+                    <span className="w-20 text-center">Disponível</span>
                     <span className="w-24 text-right">Quantidade</span>
                   </div>
                   {/* Lista de produtos */}
                   <div style={{ maxHeight: 180, overflowY: "auto" }}>
-                    {produtos.map(produto => (
-                      <div key={produto.id} className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          className="w-10"
-                          checked={produtosSelecionados.some(p => p.product_id === produto.id)}
-                          onChange={() => handleProdutoSelect(produto.id)}
-                        />
-                        <span className="flex-1">{produto.name || produto.nome || "Sem nome"}</span>
-                        {produtosSelecionados.some(p => p.product_id === produto.id) ? (
+                    {produtos.map(produto => {
+                      const quantidadeDisponivel = produto.quantity || 0;
+                      const produtoSelecionado = produtosSelecionados.find(p => p.product_id === produto.id);
+                      
+                      return (
+                        <div key={produto.id} className={`flex items-center gap-2 mb-2 ${quantidadeDisponivel === 0 ? 'opacity-50' : ''}`}>
                           <input
-                            type="number"
-                            min={1}
-                            className="w-24 border rounded px-2 py-1"
-                            value={produtosSelecionados.find(p => p.product_id === produto.id)?.quantidade || 1}
-                            onChange={e => handleProdutoChange(produto.id, "quantidade", Number(e.target.value))}
-                            placeholder="Qtd"
+                            type="checkbox"
+                            className="w-10"
+                            checked={produtoSelecionado !== undefined}
+                            onChange={() => handleProdutoSelect(produto.id)}
+                            disabled={quantidadeDisponivel === 0}
+                            title={quantidadeDisponivel === 0 ? "Produto sem estoque" : ""}
                           />
-                        ) : (
-                          <input type="number" className="w-24 border rounded px-2 py-1 bg-gray-100" disabled />
-                        )}
-                      </div>
-                    ))}
+                          <span className="flex-1">{produto.name || produto.nome || "Sem nome"}</span>
+                          <span className={`w-20 text-center text-sm ${quantidadeDisponivel === 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                            {quantidadeDisponivel}
+                          </span>
+                          {produtoSelecionado ? (
+                            <input
+                              type="number"
+                              min={1}
+                              max={quantidadeDisponivel}
+                              className="w-24 border rounded px-2 py-1"
+                              value={produtoSelecionado.quantidade}
+                              onChange={e => handleProdutoChange(produto.id, "quantidade", Number(e.target.value))}
+                              placeholder="Qtd"
+                              title={`Máximo: ${quantidadeDisponivel}`}
+                            />
+                          ) : (
+                            <input 
+                              type="number" 
+                              className="w-24 border rounded px-2 py-1 bg-gray-100" 
+                              disabled 
+                              title="Selecione o produto primeiro"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               )}

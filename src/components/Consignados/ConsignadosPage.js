@@ -67,13 +67,35 @@ const ConsignadosPage = () => {
     // Função para salvar um novo consignado
     const handleSaveConsignado = async (consignado, produtos) => {
         try {
-            await api.post("/consignados", consignado);
-            // Se necessário, envie os produtos também
+            // Preparar dados para envio, incluindo os produtos
+            const dadosCompletos = {
+                ...consignado,
+                produtos: produtos.map(p => ({
+                    product_id: p.product_id,
+                    quantidade: p.quantidade,
+                    valor_combinado: p.valor_combinado,
+                    observacoes: null // Pode adicionar observações se necessário
+                }))
+            };
+            console.log('📤 Enviando dados do consignado:', dadosCompletos);
+            const response = await api.post("/consignados", dadosCompletos);
+            console.log('✅ Resposta do servidor:', response.data);
+            // Exibir mensagem de sucesso
+            if (response.data.message) {
+                alert(response.data.message);
+            }
             fetchConsignados(); // Atualiza a lista após salvar
             setIsModalOpen(false); // Fecha o modal
         }
         catch (error) {
-            console.error("Erro ao salvar consignado:", error);
+            console.error("❌ Erro ao salvar consignado:", error);
+            // Exibir erro específico do servidor
+            if (error.response?.data?.error) {
+                alert(`Erro: ${error.response.data.error}`);
+            }
+            else {
+                alert("Erro ao salvar consignado. Tente novamente.");
+            }
         }
     };
     // Função para obter cor do status
