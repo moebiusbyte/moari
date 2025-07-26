@@ -1,11 +1,19 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "type": "module",
+  "type": "commonjs",
+  "main": "app.js",
+  "bin": "app.js",
+  "pkg": {
+    "scripts": "*.js",
+    "assets": ["*"],
+    "targets": ["node18-win-x64"]
+  },
   "scripts": {
     "dev": "tsx server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "build-exe": "pkg . --targets node18-win-x64 --output ../release/moari-server.exe",
     "clean": "rm -rf dist",
     "test": "tsx --test **/*.test.ts"
   },
@@ -31,6 +39,7 @@
     "@types/node": "^24.0.1",
     "@types/pg": "^8.11.11",
     "@types/uuid": "^10.0.0",
+    "pkg": "^5.8.1",
     "tsx": "^4.6.2",
     "typescript": "^5.8.3"
   },

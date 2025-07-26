@@ -3,14 +3,27 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
+import path from "path";
+import fs from "fs";
 
-// ✅ CORREÇÃO: Remover extensões .ts dos imports
-import productsRoutes from './routes/productRoutes.js';
-import fornecedoresRoutes from './routes/fornecedoresRoutes.js';
-import salesRoutes from './routes/vendasRoutes.js'; 
-import relatoriosRoutes from './routes/relatoriosRoutes.js';
-import { pool, setupDatabase } from './database.js';
-import consignadosRoutes from './routes/consignadosRoutes.js';
+// Em CommonJS, __dirname já está disponível automaticamente
+
+// ✅ CORREÇÃO: Imports para CommonJS
+import productsRoutes from './routes/productRoutes';
+import fornecedoresRoutes from './routes/fornecedoresRoutes';
+import salesRoutes from './routes/vendasRoutes'; 
+import relatoriosRoutes from './routes/relatoriosRoutes';
+import { pool, setupDatabase } from './database';
+import consignadosRoutes from './routes/consignadosRoutes';
+
+// ✅ ADICIONADO: Tipagem para PKG
+declare global {
+  namespace NodeJS {
+    interface Process {
+      pkg?: any;
+    }
+  }
+}
 
 
 dotenv.config();
@@ -63,16 +76,42 @@ console.log("📋 Database URL exists:", !!process.env.DATABASE_URL);
 console.log("📋 GitHub Token exists:", !!process.env.GITHUB_TOKEN);
 
 const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL não está definida no arquivo .env");
-}
+let sql: any = null;
 
-// Conexão com o banco de dados
-const sql = neon(databaseUrl);
+// ✅ CORREÇÃO: Permitir inicialização sem banco em desenvolvimento
+if (!databaseUrl) {
+  console.warn("⚠️ DATABASE_URL não está definida - rodando sem banco de dados");
+  // Criar mock do sql para desenvolvimento
+  sql = () => Promise.resolve([]);
+} else {
+  // Conexão com o banco de dados
+  sql = neon(databaseUrl);
+}
 
 // Middlewares
 app.use(express.json({ limit: '10mb' })); // ✅ AUMENTADO: Para upload de imagens base64
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ✅ ADICIONADO: Servir arquivos estáticos do frontend em produção
+// Quando rodando como PKG, os arquivos estão em um diretório diferente
+let distPath: string;
+if (process.pkg) {
+  // Rodando como PKG executável - arquivos estão no mesmo diretório do executável
+  distPath = path.join(path.dirname(process.execPath), 'dist');
+} else {
+  // Desenvolvimento normal - subir dois níveis: server/dist -> moari2/dist
+  distPath = path.join(__dirname, '..', '..', 'dist');
+}
+
+console.log('📁 Servindo arquivos estáticos de:', distPath);
+console.log('🎯 NODE_ENV:', process.env.NODE_ENV);
+console.log('📁 __dirname:', __dirname);
+console.log('📁 process.pkg:', !!process.pkg);
+console.log('📁 process.execPath:', process.execPath);
+console.log('📁 Caminho completo do dist:', distPath);
+
+// Sempre servir arquivos estáticos (independente do NODE_ENV)
+app.use(express.static(distPath));
 
 // Interface para tratamento de erros
 interface ApiError extends Error {
@@ -144,7 +183,7 @@ try {
 }
 
 // Rota de registro
-app.post("/auth/register", async (req: Request, res: Response, next: NextFunction) => {
+app.post("/api/auth/register", async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log("📝 Recebida requisição de registro");
 
@@ -193,7 +232,7 @@ app.post("/auth/register", async (req: Request, res: Response, next: NextFunctio
 });
 
 // Rota de login
-app.post("/auth/login", async (req: Request, res: Response, next: NextFunction) => {
+app.post("/api/auth/login", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
 
@@ -292,6 +331,41 @@ app.get("/api/debug-routes", (req: Request, res: Response) => {
     totalRoutes: routes.length,
     barcodeRoutes: routes.filter(r => r.path.includes('barcode'))
   });
+});
+
+// ✅ ADICIONADO: Rota catch-all para servir o frontend
+app.get('*', (req: Request, res: Response) => {
+  // Verificar se é uma requisição de API
+  if (req.path.startsWith('/api')) {
+    res.status(404).json({
+      error: "Rota da API não encontrada",
+      path: req.path,
+      method: req.method
+    });
+    return;
+  }
+  
+  // Usar o mesmo caminho definido anteriormente
+  let indexPath: string;
+  if (process.pkg) {
+    // Rodando como PKG executável
+    indexPath = path.join(path.dirname(process.execPath), 'dist', 'index.html');
+  } else {
+    // Desenvolvimento normal
+    indexPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
+  }
+  
+  console.log('📄 Servindo index.html para:', req.path);
+  console.log('📁 Caminho do index.html:', indexPath);
+  
+  // Verificar se o arquivo existe
+  if (fs.existsSync(indexPath)) {
+    console.log('✅ Arquivo index.html encontrado');
+    res.sendFile(indexPath);
+  } else {
+    console.log('❌ Arquivo index.html não encontrado');
+    res.status(404).send('Frontend não encontrado');
+  }
 });
 
 // ✅ MOVIDO: Middleware de erro no final

@@ -262,7 +262,154 @@ O sistema possui uma arquitetura RESTful bem estruturada com os seguintes módul
 - Sanitização de inputs
 - Controle de acesso por sessão
 
-## 📝 Licença
+## � Como Gerar o Executável Completo
+
+### Pré-requisitos
+- **Node.js** 18+ instalado
+- **npm** ou **pnpm** como gerenciador de pacotes
+- **Windows** 10/11 (64 bits)
+
+### 📋 Passo a Passo Completo
+
+#### 1️⃣ **Preparação do Ambiente**
+```bash
+# Clone ou baixe o projeto
+cd moari2
+
+# Instale as dependências do frontend
+npm install
+
+# Instale as dependências do servidor
+cd server
+npm install
+cd ..
+```
+
+#### 2️⃣ **Build do Frontend**
+```bash
+# Compile o frontend React para produção
+npm run build
+```
+> ✅ Isso criará a pasta `dist/` com todos os arquivos do frontend otimizados
+
+#### 3️⃣ **Build do Servidor TypeScript**
+```bash
+# Entre na pasta do servidor
+cd server
+
+# Compile o TypeScript para JavaScript
+npm run build
+```
+> ✅ Isso criará a pasta `server/dist/` com o servidor compilado
+
+#### 4️⃣ **Geração do Executável do Servidor**
+```bash
+# Volte para a raiz do projeto
+cd ..
+
+# Gere o executável usando PKG
+npx pkg server/dist/server.js --target node18-win-x64 --output moari-server.exe
+```
+> ✅ Isso criará o arquivo `moari-server.exe` (~45MB)
+
+#### 5️⃣ **Build do Electron (Aplicativo Desktop)**
+```bash
+# Gere o aplicativo Electron
+npm run electron:build
+```
+> ✅ Isso criará a pasta `release/` com o aplicativo completo
+
+#### 6️⃣ **Configuração do Pacote Final**
+
+**6.1. Copie os arquivos necessários:**
+```bash
+# Copie o executável do servidor para os recursos
+Copy-Item "moari-server.exe" "release\win-unpacked\resources\" -Force
+
+# Copie o arquivo .env
+Copy-Item ".env" "release\win-unpacked\resources\" -Force
+
+# Copie os arquivos do frontend
+Copy-Item "dist" "release\win-unpacked\resources\" -Recurse -Force
+```
+
+**6.2. Crie o script de inicialização:**
+```bash
+# Crie o arquivo: INICIAR-SISTEMA-MOARI.bat
+# Com o conteúdo para inicializar o aplicativo
+```
+
+### 📁 **Estrutura Final do Pacote**
+```
+release/win-unpacked/
+├── Sistema MoAri.exe              # Aplicativo principal
+├── resources/
+│   ├── moari-server.exe          # Servidor backend
+│   ├── .env                      # Variáveis de ambiente
+│   ├── dist/                     # Frontend React
+│   └── app.asar                  # Recursos do Electron
+├── locales/                      # Idiomas do Electron
+└── outros arquivos do Electron...
+```
+
+### 🎯 **Scripts Úteis**
+
+**Script completo de build (build-complete.bat):**
+```bat
+@echo off
+echo 🚀 Iniciando build completo...
+
+echo [1/4] 📦 Build do frontend...
+npm run build
+
+echo [2/4] 🔧 Build do servidor...
+cd server
+npm run build
+cd ..
+
+echo [3/4] 📱 Geração do executável...
+npx pkg server/dist/server.js --target node18-win-x64 --output moari-server.exe
+
+echo [4/4] 🖥️ Build do Electron...
+npm run electron:build
+
+echo ✅ Build completo finalizado!
+pause
+```
+
+### ⚠️ **Pontos Importantes**
+
+1. **Ordem das operações**: Sempre execute na sequência correta
+2. **Dependências**: Certifique-se que todas as dependências estão instaladas
+3. **Arquivo .env**: Deve conter as variáveis de banco de dados
+4. **PKG Target**: Use `node18-win-x64` para compatibilidade
+5. **CommonJS**: O servidor deve estar compilado em CommonJS para PKG
+
+### 🔧 **Troubleshooting**
+
+**Erro de PKG:**
+- Verifique se o `server/dist/server.js` existe
+- Confirme que o TypeScript foi compilado para CommonJS
+
+**Erro no Electron:**
+- Execute `npm run electron:build` na raiz do projeto
+- Verifique se o `electron.js` está configurado corretamente
+
+**Frontend não carrega:**
+- Confirme que a pasta `dist/` foi copiada corretamente
+- Verifique se o servidor está encontrando os arquivos estáticos
+
+### 📦 **Pacote para Distribuição**
+
+Para criar um pacote ZIP para distribuição:
+```bash
+# Comprima a pasta release
+Compress-Archive -Path "release\win-unpacked\*" -DestinationPath "SISTEMA-MOARI-v1.0.zip"
+```
+
+---
+
+## �📝 Licença
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
