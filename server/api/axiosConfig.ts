@@ -11,8 +11,8 @@ const getBaseUrl = () => {
   }
   // Caso contrário, usa o hostname atual com a porta do backend (3001)
   // Prioriza VITE_API_URL se definido
-  else if (import.meta.env.VITE_API_URL) {
-    baseUrl = import.meta.env.VITE_API_URL;
+  else if (typeof process !== 'undefined' && process.env.VITE_API_URL) {
+    baseUrl = process.env.VITE_API_URL;
   }
   else {
     baseUrl = `${window.location.protocol}//${window.location.hostname}:3001/api`;

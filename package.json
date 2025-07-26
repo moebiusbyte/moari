@@ -77,7 +77,8 @@
     "preview": "vite preview",
     "build-frontend": "vite build",
     "build-server": "cd server && npm run build",
-    "build-all": "npm run build-frontend && npm run build-server",
+    "build-server-exe": "cd server && pkg . --targets node18-win-x64 --output ../release/moari-server.exe",
+    "build-all": "npm run build-frontend && npm run build-server-exe",
     "electron": "electron .",
     "electron-dev": "NODE_ENV=development electron .",
     "dist": "npm run build-all && electron-builder",
@@ -101,12 +102,41 @@
       "server/dist/**/*",
       "server/package.json",
       "electron.js",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "iniciar-moari.bat",
+      "parar-servidor.bat",
+      "instalar-servico.bat",
+      "desinstalar-servico.bat",
+      "configurar-sistema.bat"
     ],
     "extraResources": [
       {
         "from": "server/dist",
         "to": "server/dist"
+      },
+      {
+        "from": "release/moari-server.exe",
+        "to": "moari-server.exe"
+      },
+      {
+        "from": "iniciar-moari.bat",
+        "to": "iniciar-moari.bat"
+      },
+      {
+        "from": "parar-servidor.bat",
+        "to": "parar-servidor.bat"
+      },
+      {
+        "from": "instalar-servico.bat",
+        "to": "instalar-servico.bat"
+      },
+      {
+        "from": "desinstalar-servico.bat",
+        "to": "desinstalar-servico.bat"
+      },
+      {
+        "from": "configurar-sistema.bat",
+        "to": "configurar-sistema.bat"
       }
     ],
     "win": {

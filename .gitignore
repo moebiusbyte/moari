@@ -1,3 +1,20 @@
 node_modules/
 log
 .env
+
+# Builds
+dist/
+release/
+*.exe
+
+# Logs e temporários
+*.log
+*.bat
+test_reports.md
+*-login.json
+
+# Documentação temporária
+IMPLEMENTACAO-CONCLUIDA.md
+INSTALACAO.md
+INSTRUÇÕES-CLIENTE.md
+LEIA-ME.md

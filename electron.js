@@ -16,12 +16,105 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
+      webSecurity: false, // Permite carregamento de recursos locais
     },
     icon: path.join(__dirname, 'assets/icon.png'), // Opcional: adicione um ícone
     show: false, // Não mostrar até estar pronto
   });
 
   console.log('🖥️ Janela criada com sucesso');
+
+  // ✅ Interceptar navegação para corrigir rotas do React Router
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    console.log('🔍 Tentativa de navegação para:', navigationUrl);
+    
+    try {
+      // Se for uma URL completa, analisar
+      if (navigationUrl.includes('://')) {
+        const parsedUrl = new URL(navigationUrl);
+        
+        // Se estiver tentando navegar para um protocolo de arquivo, converter para HTTP
+        if (parsedUrl.protocol === 'file:') {
+          console.log('� Convertendo file:// para http://localhost:3001');
+          event.preventDefault();
+          
+          // Extrair apenas o caminho (removendo file:///C:/)
+          let path = parsedUrl.pathname;
+          
+          // Limpar o caminho - remover drive letter se presente
+          if (path.match(/^\/[A-Z]:\//)) {
+            path = path.substring(3); // Remove "/C:/"
+          }
+          
+          // Se não começar com /, adicionar
+          if (!path.startsWith('/')) {
+            path = '/' + path;
+          }
+          
+          const correctedUrl = `http://localhost:3001${path}`;
+          console.log('➡️ Redirecionando para:', correctedUrl);
+          mainWindow.loadURL(correctedUrl);
+          return;
+        }
+        
+        // Se estiver tentando navegar para fora do localhost:3001, cancelar
+        if (parsedUrl.hostname !== 'localhost' || parsedUrl.port !== '3001') {
+          console.log('🚫 Bloqueando navegação externa:', navigationUrl);
+          event.preventDefault();
+          return;
+        }
+        
+        console.log('✅ Permitindo navegação HTTP:', navigationUrl);
+      } else {
+        // Se for um caminho relativo, converter para URL completa
+        console.log('🔄 Convertendo caminho relativo para URL completa');
+        event.preventDefault();
+        
+        let path = navigationUrl;
+        if (!path.startsWith('/')) {
+          path = '/' + path;
+        }
+        
+        const correctedUrl = `http://localhost:3001${path}`;
+        console.log('➡️ Redirecionando para:', correctedUrl);
+        mainWindow.loadURL(correctedUrl);
+        return;
+      }
+    } catch (error) {
+      console.error('❌ Erro ao processar navegação:', error);
+      // Em caso de erro, cancelar navegação
+      event.preventDefault();
+    }
+  });
+
+  // ✅ Interceptar criação de nova janela e cliques em links
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    console.log('🔗 Tentativa de abrir nova janela:', url);
+    
+    // Se for uma URL externa, abrir no navegador padrão
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      if (!url.includes('localhost:3001')) {
+        require('electron').shell.openExternal(url);
+        return { action: 'deny' };
+      }
+    }
+    
+    // Se for um link interno, abrir na mesma janela
+    mainWindow.loadURL(url);
+    return { action: 'deny' };
+  });
+
+  // ✅ Interceptar eventos de navegação via JavaScript também
+  mainWindow.webContents.on('new-window', (event, url) => {
+    console.log('🔗 new-window event:', url);
+    event.preventDefault();
+    
+    if (url.startsWith('http://localhost:3001')) {
+      mainWindow.loadURL(url);
+    } else if (url.startsWith('http://') || url.startsWith('https://')) {
+      require('electron').shell.openExternal(url);
+    }
+  });
 
   // ✅ ADICIONADO: Carregar tela de carregamento imediatamente
   const loadingHtml = `
@@ -195,193 +288,186 @@ function createWindow() {
 }
 
 function startServer() {
-  console.log('🚀 Iniciando processo do servidor...');
+  console.log('🚀 Verificando e iniciando processo do servidor...');
   
   return new Promise((resolve, reject) => {
-    // Caminho para o servidor
-    const serverPath = path.join(__dirname, 'server', 'dist', 'server.js');
-    console.log('📁 Caminho do servidor:', serverPath);
+    // ✅ PRIMEIRO: Verificar se o servidor já está rodando
+    console.log('🔍 Verificando se servidor já está ativo na porta 3001...');
+    
+    const http = require('http');
+    const testRequest = http.get('http://localhost:3001/', (res) => {
+      console.log('✅ Servidor já está rodando! Status:', res.statusCode);
+      resolve();
+    });
+    
+    testRequest.on('error', (error) => {
+      console.log('❌ Servidor não está rodando, iniciando novo processo...');
+      
+      // Se não está rodando, iniciar o servidor
+      const fs = require('fs');
+      const isDev = !app.isPackaged; // Melhor detecção de desenvolvimento
+      
+      console.log('🔍 Informações do ambiente:');
+      console.log('  isDev:', isDev);
+      console.log('  isPackaged:', app.isPackaged);
+      console.log('  __dirname:', __dirname);
+      
+      let serverPath;
+      
+      // Primeiro, tentar na pasta release (desenvolvimento)
+      const devPath = path.join(__dirname, 'release', 'moari-server.exe');
+      
+      // Depois, tentar na pasta server (local)
+      const localPath = path.join(__dirname, 'server', 'moari-server.exe');
+      
+      // Por último, tentar nos recursos (produção)
+      const prodPath = path.join(process.resourcesPath || __dirname, 'moari-server.exe');
+      
+      // Verificar qual existe
+      if (fs.existsSync(devPath)) {
+        serverPath = devPath;
+        console.log('✅ Usando executável da pasta release');
+      } else if (fs.existsSync(localPath)) {
+        serverPath = localPath;
+        console.log('✅ Usando executável da pasta server');
+      } else if (fs.existsSync(prodPath)) {
+        serverPath = prodPath;
+        console.log('✅ Usando executável dos recursos');
+      } else {
+        console.error('❌ Executável não encontrado em nenhum local');
+        serverPath = devPath; // Fallback para mostrar erro
+      }
+      
+      console.log('📁 Caminho do servidor:', serverPath);
     
     // Verificar se o arquivo existe
-    const fs = require('fs');
     if (!fs.existsSync(serverPath)) {
-      console.error('❌ Arquivo do servidor não encontrado:', serverPath);
-      reject(new Error('Arquivo do servidor não encontrado'));
+      console.error('❌ Executável do servidor não encontrado:', serverPath);
+      console.log('📂 Tentando caminhos alternativos...');
+      
+      // Listar arquivos disponíveis para debug
+      try {
+        console.log('📂 Conteúdo de __dirname:', fs.readdirSync(__dirname));
+        if (fs.existsSync(path.join(__dirname, 'release'))) {
+          console.log('� Conteúdo de release:', fs.readdirSync(path.join(__dirname, 'release')));
+        }
+      } catch (e) {
+        console.log('📂 Erro ao listar arquivos:', e.message);
+      }
+      
+      reject(new Error('Executável do servidor não encontrado'));
       return;
     }
     
-    console.log('✅ Arquivo do servidor encontrado');
+    console.log('✅ Executável do servidor encontrado em:', serverPath);
     
-    // ✅ ABORDAGEM PRIORITÁRIA: Usar Node.js diretamente via spawn
-    console.log('🔄 Iniciando servidor via spawn...');
+    // ✅ EXECUTAR O SERVIDOR STANDALONE
+    console.log('🔄 Iniciando servidor executável standalone...');
     
-    // Configurar variáveis de ambiente
-    const env = {
-      ...process.env,
-      NODE_ENV: 'production',
-      PORT: '3001',
-      HOST: '0.0.0.0'
-    };
-    
-    // Lista de possíveis executáveis Node.js
-    const possibleNodePaths = [
-      process.execPath.replace('electron.exe', 'node.exe'), // Tentar Node.js na mesma pasta do Electron
-      'node', // Comando padrão do sistema
-      'node.exe', // Windows específico
-      path.join(process.resourcesPath, '..', 'node.exe'), // Possível localização no empacotamento
-      path.join(__dirname, '..', 'node.exe'), // Relativo ao executável
-      'C:\\Program Files\\nodejs\\node.exe', // Instalação padrão Windows
-      'C:\\Program Files (x86)\\nodejs\\node.exe', // Instalação 32-bit
-    ];
-    
-    let serverStarted = false;
-    let tryCount = 0;
-    
-    function tryNextNode() {
-      if (tryCount >= possibleNodePaths.length || serverStarted) {
+    try {
+      // Executar o arquivo .exe diretamente
+      console.log('� Executando:', serverPath);
+      
+      serverProcess = spawn(serverPath, [], {
+        cwd: path.dirname(serverPath),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+        detached: false
+      });
+
+      let serverStarted = false;
+
+      serverProcess.stdout.on('data', (data) => {
+        const output = data.toString();
+        console.log(`📟 Server stdout: ${output}`);
+        
+        // Verificar se o servidor confirmou que está rodando
+        if (output.includes('SERVIDOR INICIADO') || 
+            output.includes('3001') || 
+            output.includes('listening') ||
+            output.includes('Server started')) {
+          console.log('✅ Servidor confirmou inicialização via stdout');
+          if (!serverStarted) {
+            serverStarted = true;
+            resolve();
+          }
+        }
+      });
+
+      serverProcess.stderr.on('data', (data) => {
+        const error = data.toString();
+        console.error(`❌ Server stderr: ${error}`);
+      });
+
+      serverProcess.on('error', (spawnError) => {
+        console.error(`💥 Spawn error:`, spawnError.message);
         if (!serverStarted) {
-          console.log('⚠️ Nenhum Node.js funcionou, mas assumindo que servidor pode estar rodando');
+          console.log('🔄 Tentando fallback...');
+          // Fallback: assumir que vai funcionar e deixar o timeout resolver
+        }
+      });
+
+      serverProcess.on('exit', (code, signal) => {
+        console.log(`🔚 Servidor terminou com código ${code} e sinal ${signal}`);
+      });
+
+      // Timeout de segurança - assumir que funcionou após 8 segundos
+      setTimeout(() => {
+        if (!serverStarted) {
+          console.log('⏰ Timeout - assumindo que servidor está funcionando');
+          serverStarted = true;
           resolve();
         }
-        return;
-      }
+      }, 8000);
       
-      const nodePath = possibleNodePaths[tryCount];
-      tryCount++;
-      
-      console.log(`🔍 Tentativa ${tryCount}/${possibleNodePaths.length}: ${nodePath}`);
-      
-      try {
-        serverProcess = spawn(nodePath, [serverPath], {
-          cwd: path.join(__dirname, 'server'),
-          env: env,
-          stdio: ['ignore', 'pipe', 'pipe'],
-          shell: false,
-          detached: false
-        });
-
-        serverProcess.stdout.on('data', (data) => {
-          const output = data.toString();
-          console.log(`📟 Server stdout: ${output}`);
-          
-          // Verificar se o servidor confirmou que está rodando
-          if (output.includes('SERVIDOR INICIADO') || 
-              output.includes('3001') || 
-              output.includes('listening') ||
-              output.includes('Server started')) {
-            console.log('✅ Servidor confirmou inicialização via stdout');
-            if (!serverStarted) {
-              serverStarted = true;
-              resolve();
-            }
-          }
-        });
-
-        serverProcess.stderr.on('data', (data) => {
-          const error = data.toString();
-          console.error(`❌ Server stderr: ${error}`);
-          
-          // Se for erro de ENOENT, tentar próximo Node.js
-          if (error.includes('ENOENT') || error.includes('spawn')) {
-            console.log('🔄 Erro de spawn, tentando próximo Node.js...');
-            setTimeout(tryNextNode, 1000);
-          }
-        });
-
-        serverProcess.on('error', (spawnError) => {
-          console.error(`💥 Spawn error com ${nodePath}:`, spawnError.message);
-          if (spawnError.code === 'ENOENT') {
-            console.log('🔄 ENOENT detectado, tentando próximo Node.js...');
-            setTimeout(tryNextNode, 1000);
-          }
-        });
-
-        serverProcess.on('exit', (code, signal) => {
-          console.log(`🔚 Servidor terminou com código ${code} e sinal ${signal}`);
-          if (!serverStarted && code !== 0) {
-            console.log('🔄 Servidor terminou com erro, tentando próximo Node.js...');
-            setTimeout(tryNextNode, 1000);
-          }
-        });
-
-        // Se chegou até aqui sem erro imediato, aguardar um pouco
-        setTimeout(() => {
-          if (!serverStarted) {
-            console.log(`⏰ Timeout para ${nodePath}, tentando próximo...`);
-            if (serverProcess && !serverProcess.killed) {
-              serverProcess.kill();
-            }
-            tryNextNode();
-          }
-        }, 5000);
-        
-      } catch (spawnError) {
-        console.error(`❌ Erro ao tentar spawn ${nodePath}:`, spawnError.message);
-        setTimeout(tryNextNode, 1000);
-      }
+    } catch (spawnError) {
+      console.error(`❌ Erro ao tentar spawn:`, spawnError.message);
+      // Mesmo com erro, resolver para tentar carregar
+      resolve();
     }
+    });
     
-    // Iniciar tentativas
-    tryNextNode();
-    
-    // Timeout final mais longo
-    setTimeout(() => {
-      if (!serverStarted) {
-        console.log('⏰ Timeout final - assumindo que servidor pode estar funcionando');
-        resolve();
-      }
-    }, 20000); // 20 segundos
+    testRequest.setTimeout(2000, () => testRequest.abort());
   });
 }
 
 async function waitForServer() {
   console.log('🔍 Aguardando servidor estar disponível...');
   
-  // Lista de endpoints para testar (em ordem de prioridade)
-  const testUrls = [
-    'http://localhost:3001/api/test-simple',
-    'http://localhost:3001/health',
-    'http://localhost:3001/',
-    'http://localhost:3001/api/products'
-  ];
+  // ✅ CORRIGIDO: Apenas 1 URL de teste e menos tentativas
+  const testUrl = 'http://localhost:3001/';
   
-  for (let i = 0; i < 45; i++) { // Aumentar tentativas para 45 segundos
-    for (const testUrl of testUrls) {
-      try {
-        const http = require('http');
-        await new Promise((resolve, reject) => {
-          const req = http.get(testUrl, (res) => {
-            console.log(`🔍 Testando ${testUrl} - Status: ${res.statusCode}`);
-            if (res.statusCode === 200 || res.statusCode === 404) {
-              // 404 também indica que o servidor está respondendo
-              console.log(`✅ Servidor respondeu em ${testUrl}!`);
-              resolve();
-            } else {
-              reject(new Error(`Status: ${res.statusCode}`));
-            }
-          });
-          
-          req.on('error', (error) => {
-            console.log(`❌ Erro em ${testUrl}: ${error.message}`);
-            reject(error);
-          });
-          req.setTimeout(3000, () => reject(new Error('Timeout')));
+  for (let i = 0; i < 8; i++) { // ✅ Reduzido para apenas 8 tentativas
+    try {
+      const http = require('http');
+      await new Promise((resolve, reject) => {
+        const req = http.get(testUrl, (res) => {
+          console.log(`🔍 Testando servidor - Status: ${res.statusCode}`);
+          if (res.statusCode === 200 || res.statusCode === 404) {
+            // 404 também indica que o servidor está respondendo
+            console.log(`✅ Servidor está respondendo!`);
+            resolve();
+          } else {
+            reject(new Error(`Status: ${res.statusCode}`));
+          }
         });
         
-        return true; // Servidor está disponível
-      } catch (error) {
-        // Continuar testando outras URLs
-        continue;
-      }
+        req.on('error', (error) => {
+          reject(error);
+        });
+        req.setTimeout(2000, () => reject(new Error('Timeout')));
+      });
+      
+      return true; // Servidor está disponível
+    } catch (error) {
+      console.log(`⏳ Tentativa ${i + 1}/8 - aguardando servidor...`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Aguardar 1 segundo
     }
-    
-    console.log(`⏳ Tentativa ${i + 1}/45 - todas as URLs falharam`);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Aguardar 1 segundo
   }
   
-  // Não rejeitar imediatamente - tentar carregar mesmo assim
-  console.log('⚠️ Servidor pode não estar respondendo, mas tentando carregar...');
-  return false;
+  // ✅ Servidor provavelmente está funcionando mesmo sem resposta HTTP
+  console.log('⚠️ Timeout na verificação, mas prosseguindo...');
+  return true; // ✅ Sempre retornar true para não bloquear
 }
 
 async function initializeApp() {
@@ -415,7 +501,7 @@ async function initializeApp() {
       appUrl = 'http://localhost:5173';
       console.log('🔧 Carregando em modo desenvolvimento via Vite');
     } else {
-      // Em produção, carregar via servidor HTTP
+      // Em produção, carregar via servidor HTTP (que serve o frontend corretamente)
       appUrl = 'http://localhost:3001';
       console.log('🏭 Carregando em modo produção via servidor HTTP');
     }

@@ -5,19 +5,25 @@ import { neon } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from 'url';
 
-// ✅ CORREÇÃO: Definir __dirname para ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Em CommonJS, __dirname já está disponível automaticamente
 
-// ✅ CORREÇÃO: Remover extensões .ts dos imports
-import productsRoutes from './routes/productRoutes.js';
-import fornecedoresRoutes from './routes/fornecedoresRoutes.js';
-import salesRoutes from './routes/vendasRoutes.js'; 
-import relatoriosRoutes from './routes/relatoriosRoutes.js';
-import { pool, setupDatabase } from './database.js';
-import consignadosRoutes from './routes/consignadosRoutes.js';
+// ✅ CORREÇÃO: Imports para CommonJS
+import productsRoutes from './routes/productRoutes';
+import fornecedoresRoutes from './routes/fornecedoresRoutes';
+import salesRoutes from './routes/vendasRoutes'; 
+import relatoriosRoutes from './routes/relatoriosRoutes';
+import { pool, setupDatabase } from './database';
+import consignadosRoutes from './routes/consignadosRoutes';
+
+// ✅ ADICIONADO: Tipagem para PKG
+declare global {
+  namespace NodeJS {
+    interface Process {
+      pkg?: any;
+    }
+  }
+}
 
 
 dotenv.config();
@@ -87,10 +93,21 @@ app.use(express.json({ limit: '10mb' })); // ✅ AUMENTADO: Para upload de image
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ✅ ADICIONADO: Servir arquivos estáticos do frontend em produção
-const distPath = path.join(__dirname, '..', '..', 'dist'); // Subir dois níveis: server/dist -> moari2/dist
+// Quando rodando como PKG, os arquivos estão em um diretório diferente
+let distPath: string;
+if (process.pkg) {
+  // Rodando como PKG executável - arquivos estão no mesmo diretório do executável
+  distPath = path.join(path.dirname(process.execPath), 'dist');
+} else {
+  // Desenvolvimento normal - subir dois níveis: server/dist -> moari2/dist
+  distPath = path.join(__dirname, '..', '..', 'dist');
+}
+
 console.log('📁 Servindo arquivos estáticos de:', distPath);
 console.log('🎯 NODE_ENV:', process.env.NODE_ENV);
 console.log('📁 __dirname:', __dirname);
+console.log('📁 process.pkg:', !!process.pkg);
+console.log('📁 process.execPath:', process.execPath);
 console.log('📁 Caminho completo do dist:', distPath);
 
 // Sempre servir arquivos estáticos (independente do NODE_ENV)
@@ -328,7 +345,16 @@ app.get('*', (req: Request, res: Response) => {
     return;
   }
   
-  const indexPath = path.join(__dirname, '..', '..', 'dist', 'index.html'); // Correto: server/dist -> moari2/dist
+  // Usar o mesmo caminho definido anteriormente
+  let indexPath: string;
+  if (process.pkg) {
+    // Rodando como PKG executável
+    indexPath = path.join(path.dirname(process.execPath), 'dist', 'index.html');
+  } else {
+    // Desenvolvimento normal
+    indexPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
+  }
+  
   console.log('📄 Servindo index.html para:', req.path);
   console.log('📁 Caminho do index.html:', indexPath);
   
