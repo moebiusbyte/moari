@@ -276,7 +276,6 @@ interface FornecedorFormData {
                                 required
                             />
                         </div>
-
                         
                         {/* Contato */}
                         <div>
@@ -385,7 +384,7 @@ interface FornecedorFormData {
                         name="ultimacompra"
                         value={
                           fornecedor.ultimacompra
-                            ? new Date(fornecedor.ultimacompra).toISOString().slice(0, 10) // Pega apenas YYYY-MM-DD
+                            ? new Date(fornecedor.ultimacompra).toISOString().slice(0, 10) //  YYYY-MM-DD
                             : ""
                         }
                         onChange={(e) =>

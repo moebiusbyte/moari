@@ -343,7 +343,7 @@ const ProductsPage = () => {
                 }, onSave: (formData, newImages) => handleUpdateProduct(formData, newImages), product: selectedProduct, suppliers: suppliers })), selectedProduct && deleteModalOpen && (_jsx(DeleteProductModal, { isOpen: deleteModalOpen, onClose: () => {
                     setDeleteModalOpen(false);
                     setSelectedProduct(null);
-                }, onConfirm: handleConfirmDelete, productId: selectedProduct.id.toString(), productName: selectedProduct.name })), selectedProductForBarcode && barcodeModalOpen && (_jsx(IntegratedBarcodeGenerator, { productId: selectedProductForBarcode.id.toString(), productCode: selectedProductForBarcode.code, productName: selectedProductForBarcode.name, productPrice: Number(selectedProductForBarcode.base_price) * ((Number(selectedProductForBarcode.profit_margin) / 100) + 1), onClose: () => {
+                }, onConfirm: handleConfirmDelete, productId: selectedProduct.id.toString(), productName: selectedProduct.name ?? '' })), selectedProductForBarcode && barcodeModalOpen && (_jsx(IntegratedBarcodeGenerator, { productId: selectedProductForBarcode.id.toString(), productCode: selectedProductForBarcode.code, productName: selectedProductForBarcode.name ?? '', productPrice: Number(selectedProductForBarcode.base_price) * ((Number(selectedProductForBarcode.profit_margin) / 100) + 1), onClose: () => {
                     setBarcodeModalOpen(false);
                     setSelectedProductForBarcode(null);
                 }, onBarcodeGenerated: handleBarcodeGenerated }))] }));

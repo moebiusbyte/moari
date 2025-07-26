@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Download, BarChart3, Copy, Check, Settings, Eye, EyeOff, AlertTriangle, Save, History, Trash2, Search } from 'lucide-react';
+import { Download, BarChart3, Copy, Check, Settings, Eye, EyeOff, AlertTriangle, Save, History, Trash2, Building } from 'lucide-react';
 import api from "../../../server/api/axiosConfig";
 
 interface BarcodeConfig {
@@ -10,6 +10,7 @@ interface BarcodeConfig {
   useOriginalPrice: boolean;
   customPrefix: string;
   customSuffix: string;
+  supplierCode: string; // Novo campo para código do fornecedor
 }
 
 interface SavedBarcode {
@@ -25,6 +26,7 @@ interface BarcodeGeneratorProps {
   productCode: string;
   productName: string;
   productPrice: number;
+  supplierName?: string; // Nome do fornecedor (opcional)
   onClose: () => void;
   onBarcodeGenerated?: (barcode: SavedBarcode) => void;
 }
@@ -34,6 +36,7 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
   productCode,
   productName,
   productPrice,
+  supplierName = '',
   onClose,
   onBarcodeGenerated
 }) => {
@@ -55,8 +58,40 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     maxNameLength: 12,
     useOriginalPrice: false,
     customPrefix: '',
-    customSuffix: ''
+    customSuffix: '',
+    supplierCode: generateSupplierCode(supplierName) // Gera código automático
   });
+
+  // Função para gerar código do fornecedor automaticamente
+  function generateSupplierCode(name: string): string {
+    if (!name || name.trim() === '') return '';
+    
+    // Remove acentos e caracteres especiais
+    const cleaned = name
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Z0-9\s]/g, '');
+    
+    // Pega as primeiras letras de cada palavra (máximo 4)
+    const words = cleaned.split(/\s+/).filter(word => word.length > 0);
+    let code = '';
+    
+    if (words.length === 1) {
+      // Se for uma palavra só, pega as 4 primeiras letras
+      code = words[0].substring(0, 4);
+    } else {
+      // Se forem múltiplas palavras, pega a primeira letra de cada uma
+      for (const word of words) {
+        if (code.length < 4) {
+          code += word.charAt(0);
+        }
+      }
+    }
+    
+    // Completa com zeros se necessário
+    return code.padEnd(4, '0');
+  }
 
   // Configurar tabela na inicialização
   useEffect(() => {
@@ -69,6 +104,14 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
       loadSavedBarcodes();
     }
   }, [productId, setupRequired]);
+
+  // Atualizar código do fornecedor quando supplierName mudar
+  useEffect(() => {
+    setConfig(prev => ({
+      ...prev,
+      supplierCode: generateSupplierCode(supplierName)
+    }));
+  }, [supplierName]);
 
   // Configurar tabela de códigos de barras
   const setupBarcodeTable = async () => {
@@ -105,6 +148,12 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
   useEffect(() => {
     let parts: string[] = [];
 
+    // SEMPRE adiciona o código do fornecedor no início (4 caracteres)
+    if (config.supplierCode && config.supplierCode.trim()) {
+      const supplierCodeClean = cleanText(config.supplierCode, 4).padEnd(4, '0');
+      parts.push(supplierCodeClean);
+    }
+
     if (config.customPrefix) {
       parts.push(cleanText(config.customPrefix));
     }
@@ -136,7 +185,7 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     setBarcodeText(generatedBarcode);
   }, [productCode, productName, productPrice, config]);
 
-  // Salvar código de barras no backend (CORRIGIDO)
+  // Salvar código de barras no backend
   const handleSaveBarcode = async () => {
     if (!barcodeText || saving) return;
 
@@ -147,6 +196,7 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
       console.log('🚀 === SALVANDO CÓDIGO DE BARRAS ===');
       console.log('🆔 Product ID:', productId);
       console.log('📋 Barcode Text:', barcodeText);
+      console.log('🏢 Supplier Code:', config.supplierCode);
       console.log('⚙️ Config:', config);
       console.log('===================================');
 
@@ -214,7 +264,7 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     }
   };
 
-  // Carregar códigos de barras salvos (CORRIGIDO)
+  // Carregar códigos de barras salvos
   const loadSavedBarcodes = async () => {
     try {
       setLoading(true);
@@ -246,7 +296,7 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     }
   };
 
-  // Deletar código de barras (CORRIGIDO)
+  // Deletar código de barras
   const handleDeleteBarcode = async (barcodeId: number) => {
     if (!confirm('Deseja realmente deletar este código de barras?')) return;
 
@@ -284,7 +334,8 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     
     const timestamp = new Date().toISOString().slice(0, 10);
     const cleanProductName = productName.replace(/[^a-zA-Z0-9]/g, '_');
-    const filename = `barcode_${productCode}_${cleanProductName}_${timestamp}.png`;
+    const supplierPrefix = config.supplierCode ? `${config.supplierCode}_` : '';
+    const filename = `barcode_${supplierPrefix}${productCode}_${cleanProductName}_${timestamp}.png`;
     
     const link = document.createElement('a');
     link.download = filename;
@@ -305,17 +356,27 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const barHeight = 100;
-    const fontSize = 14;
-    const textHeight = 40;
-    const padding = 20;
-    const barWidth = Math.max(1, Math.min(3, 400 / text.length));
+    // Dimensões otimizadas
+    const barHeight = 60;
+    const fontSize = 12;
+    const descriptionFontSize = 10;
+    const textHeight = 35;
+    const padding = 15;
     
-    const barsPerChar = 11;
-    const totalBars = (text.length * barsPerChar) + 35;
-    const totalWidth = Math.max(300, (totalBars * barWidth) + (padding * 2));
+    // Largura das barras
+    const minBarWidth = 1;
+    const maxBarWidth = 2.5;
+    const idealWidth = 350;
+    const barWidth = Math.max(minBarWidth, Math.min(maxBarWidth, idealWidth / text.length));
+    
+    // Cálculo de dimensões
+    const barsPerChar = 8;
+    const totalBars = text.length * barsPerChar;
+    const barsWidth = totalBars * barWidth;
+    const totalWidth = Math.max(300, barsWidth + (padding * 2));
     const totalHeight = barHeight + textHeight + (padding * 2);
     
+    // Configurar canvas
     canvas.width = totalWidth;
     canvas.height = totalHeight;
     
@@ -323,35 +384,62 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, totalWidth, totalHeight);
     
-    // Desenhar barras
+    // Desenhar barras centralizadas
     ctx.fillStyle = 'black';
-    let x = padding;
+    const startX = (totalWidth - barsWidth) / 2;
+    let x = startX;
     
-    // Padrão simples de código de barras
+    // Padrão de código de barras
     for (let i = 0; i < text.length; i++) {
       const charCode = text.charCodeAt(i);
-      const pattern = charCode % 8;
+      const pattern = (charCode % 7) + 1;
       
-      for (let j = 0; j < 8; j++) {
-        if ((pattern + j) % 2 === 0) {
+      for (let j = 0; j < barsPerChar; j++) {
+        const shouldDrawBar = (pattern & (1 << (j % 3))) !== 0;
+        
+        if (shouldDrawBar) {
           ctx.fillRect(x, padding, barWidth, barHeight);
         }
         x += barWidth;
       }
     }
     
-    // Texto
+    // Textos centralizados
     ctx.fillStyle = 'black';
-    ctx.font = `${fontSize}px 'Courier New', monospace`;
     ctx.textAlign = 'center';
-    ctx.fillText(text, totalWidth / 2, padding + barHeight + fontSize + 5);
+    const centerX = totalWidth / 2;
     
-    ctx.font = `${fontSize - 4}px Arial`;
-    ctx.fillText(
-      `${productCode} • ${productName} • R$ ${productPrice.toFixed(2)}`,
-      totalWidth / 2, 
-      padding + barHeight + fontSize + 20
-    );
+    // Código do produto (principal)
+    ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+    ctx.fillText(text, centerX, padding + barHeight + fontSize + 8);
+    
+    // Descrição do produto (incluindo fornecedor)
+    ctx.font = `${descriptionFontSize}px Arial`;
+    const supplierInfo = config.supplierCode ? `[${config.supplierCode}] ` : '';
+    const description = `${supplierInfo}${productCode} • ${productName} • R$ ${productPrice.toFixed(2)}`;
+    
+    // Quebrar texto longo se necessário
+    const maxDescriptionWidth = totalWidth - 20;
+    ctx.fillStyle = '#666666';
+    
+    if (ctx.measureText(description).width > maxDescriptionWidth) {
+      // Quebrar em duas linhas se necessário
+      const parts = description.split(' • ');
+      const line1 = `${parts[0]} • ${parts[1]}`;
+      const line2 = parts[2] || '';
+      
+      ctx.fillText(line1, centerX, padding + barHeight + fontSize + 20);
+      if (line2) {
+        ctx.fillText(line2, centerX, padding + barHeight + fontSize + 32);
+      }
+    } else {
+      ctx.fillText(description, centerX, padding + barHeight + fontSize + 20);
+    }
+    
+    // Bordas sutis
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, totalWidth - 1, totalHeight - 1);
   };
 
   // Atualizar canvas
@@ -359,7 +447,7 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     if (barcodeText && canvasRef.current && showPreview) {
       generateBarcodeCanvas(barcodeText, canvasRef.current);
     }
-  }, [barcodeText, showPreview]);
+  }, [barcodeText, showPreview, config.supplierCode]);
 
   const isValid = barcodeText.length >= 3 && barcodeText.length <= 50;
 
@@ -374,7 +462,7 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-800">Gerador de Código de Barras</h2>
-              <p className="text-sm text-gray-600">Gere, salve e gerencie códigos de barras</p>
+              <p className="text-sm text-gray-600">Gere, salve e gerencie códigos de barras com código do fornecedor</p>
               {setupRequired && (
                 <p className="text-xs text-red-600 font-medium">⚠️ Configuração necessária</p>
               )}
@@ -416,8 +504,15 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
         <div className="flex">
           {/* Área principal */}
           <div className={`${showHistory ? 'w-2/3' : 'w-full'} p-6 space-y-6`}>
-            {/* Informações do produto */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+            {/* Informações do produto e fornecedor */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <label className="text-sm font-medium text-gray-600">Fornecedor</label>
+                <div className="text-lg font-mono bg-white p-2 rounded border flex items-center gap-2">
+                  <Building size={16} className="text-blue-600" />
+                  {config.supplierCode || 'N/A'}
+                </div>
+              </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Código</label>
                 <div className="text-lg font-mono bg-white p-2 rounded border">{productCode}</div>
@@ -451,6 +546,33 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
               
               {showConfig && (
                 <div className="p-4 border-t bg-gray-50 space-y-4">
+                  {/* Código do fornecedor - Nova seção destacada */}
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <label className="block text-sm font-medium text-blue-800 mb-2">
+                      <Building size={16} className="inline mr-1" />
+                      Código do Fornecedor (4 caracteres)
+                    </label>
+                    <input
+                      type="text"
+                      value={config.supplierCode}
+                      onChange={(e) => setConfig(prev => ({...prev, supplierCode: e.target.value.toUpperCase()}))}
+                      placeholder="Ex: COCA, NEST, FORD..."
+                      className="w-full p-2 border rounded font-mono text-center"
+                      maxLength={4}
+                    />
+                    {supplierName && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        Sugestão baseada em "{supplierName}": {generateSupplierCode(supplierName)}
+                        <button
+                          onClick={() => setConfig(prev => ({...prev, supplierCode: generateSupplierCode(supplierName)}))}
+                          className="ml-2 text-blue-700 underline"
+                        >
+                          Usar
+                        </button>
+                      </p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <label className="flex items-center gap-2">
                       <input
@@ -511,7 +633,7 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">Prefixo</label>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Prefixo Adicional</label>
                       <input
                         type="text"
                         value={config.customPrefix}
@@ -556,6 +678,11 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
                   {copied ? 'Copiado!' : 'Copiar'}
                 </button>
               </div>
+              {config.supplierCode && (
+                <p className="text-xs text-gray-500 mt-2">
+                  Estrutura: <span className="font-mono bg-blue-100 px-1 rounded">{config.supplierCode}</span> (Fornecedor) + Código + Nome + Preço
+                </p>
+              )}
             </div>
 
             {/* Preview */}
@@ -585,6 +712,9 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
             <div className="flex justify-between items-center pt-4 border-t">
               <div className="text-sm text-gray-500">
                 Comprimento: {barcodeText.length} caracteres
+                {config.supplierCode && (
+                  <span className="ml-2 text-blue-600">• Fornecedor: {config.supplierCode}</span>
+                )}
               </div>
               
               <div className="flex gap-3">
@@ -664,6 +794,17 @@ const IntegratedBarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
                           <Trash2 size={14} />
                         </button>
                       </div>
+                      
+                      {/* Mostrar código do fornecedor se disponível */}
+                      {barcode.config?.supplierCode && (
+                        <div className="flex items-center gap-1 mb-2">
+                          <Building size={12} className="text-blue-500" />
+                          <span className="text-xs text-blue-600 font-medium">
+                            {barcode.config.supplierCode}
+                          </span>
+                        </div>
+                      )}
+                      
                       <div className="text-xs text-gray-500 mb-2">
                         {new Date(barcode.created_at).toLocaleDateString('pt-BR', {
                           day: '2-digit',

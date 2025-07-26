@@ -1,4 +1,5 @@
 import express, { Router, Request, Response, RequestHandler } from "express";
+import { ThermalPrinter, PrinterTypes, CharacterSet, BreakLine } from 'node-thermal-printer';
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
@@ -713,6 +714,42 @@ router.get("/products", async (req: Request, res: Response) => {
     const productsResult = await client.query(productsQuery, paginationParams);
 
     console.log(`✅ Query executada com sucesso. Produtos encontrados: ${productsResult.rows.length}`);
+
+    // ...após obter o resultado da query, por exemplo:
+    console.log("Produtos retornados:");
+    interface Produto {
+      id: number;
+      code: string;
+      name: string;
+      nome?: string;
+      category?: string;
+      format?: string;
+      quality?: string;
+      material_type?: string;
+      usage_mode?: string;
+      size?: string;
+      origin?: string;
+      warranty?: string;
+      base_price?: number;
+      profit_margin?: number;
+      description?: string;
+      supplier_id?: number;
+      buy_date?: string;
+      quantity?: number;
+      created_at?: string;
+      updated_at?: string;
+      status?: string;
+      has_quality_issues?: boolean;
+      supplier_name?: string;
+      dias_em_estoque?: number;
+      tempo_estoque_categoria?: string;
+      status_estoque?: string;
+      materials?: string[];
+      images?: string[];
+    }
+
+    const produtos: Produto[] = productsResult.rows;
+    produtos.forEach((p: Produto) => console.log("Produto:", p.name, p.nome, p.code));
 
     res.json({
       products: productsResult.rows,

@@ -29,6 +29,7 @@ import FornecedoresPage from "./components/Fornecedores/FornecedoresPage";
 import SignUpPage from "./components/SignUpPage";
 import DataAtual from "./components/DataAtual";
 import RelatoriosPage from "./components/Relatorio/RelatoriosPage";
+import ConsignadosPage from "./components/Consignados/ConsignadosPage";
 
 // Componente que controla o acesso às rotas protegidas
 const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({
@@ -72,7 +73,7 @@ const Layout = () => {
 
   // Itens do menu principal
   const menuItems = [
-    { icon: LayoutDashboard, text: "Dashboard", path: "/dashboard" },
+    { icon: LayoutDashboard, text: "Consignados", path: "/consignados" },//CONSIGNADO
     { icon: Package, text: "Produtos", path: "/produtos" },
     { icon: Users, text: "Fornecedores", path: "/fornecedores" },
     { icon: ShoppingCart, text: "Vendas", path: "/vendas" },
@@ -164,7 +165,11 @@ const Layout = () => {
               {/* Rotas protegidas da aplicação */}
               <Route
                 path="/dashboard"
-                element={<PrivateRoute element={<Dashboard />} />}/>
+                element={<PrivateRoute element={<Dashboard />} />}
+              />
+              <Route
+                path="/consignados"
+                element={<PrivateRoute element={<ConsignadosPage />} />}/>
               <Route
                 path="/produtos"
                 element={<PrivateRoute element={<ProductsPage />} />}/>

@@ -9,6 +9,7 @@ import fornecedoresRoutes from './routes/fornecedoresRoutes.js';
 import salesRoutes from './routes/vendasRoutes.js';
 import relatoriosRoutes from './routes/relatoriosRoutes.js';
 import { setupDatabase } from './database.js';
+import consignadosRoutes from './routes/consignadosRoutes.js';
 dotenv.config();
 // Definição das constantes de configuração
 const PORT = Number(process.env.PORT) || 3001;
@@ -83,6 +84,13 @@ try {
 }
 catch (error) {
     console.error("❌ Erro ao registrar rotas de produtos:", error);
+}
+try {
+    app.use('/api', consignadosRoutes);
+    console.log("✅ Rotas de consignados registradas");
+}
+catch (error) {
+    console.error("❌ Erro ao registrar rotas de consignados:", error);
 }
 try {
     app.use('/api', fornecedoresRoutes);

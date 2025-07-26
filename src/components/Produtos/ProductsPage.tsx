@@ -744,14 +744,14 @@ const ProductsPage = () => {
           }}
           onConfirm={handleConfirmDelete}
           productId={selectedProduct.id.toString()}
-          productName={selectedProduct.name}/>
+          productName={selectedProduct.name ?? ''}/>
       )}
 
       {selectedProductForBarcode && barcodeModalOpen && (
         <IntegratedBarcodeGenerator
           productId={selectedProductForBarcode.id.toString()}
           productCode={selectedProductForBarcode.code}
-          productName={selectedProductForBarcode.name}
+          productName={selectedProductForBarcode.name ?? ''}
           productPrice={Number(selectedProductForBarcode.base_price) * ((Number(selectedProductForBarcode.profit_margin) / 100) + 1)}
           onClose={() => {
             setBarcodeModalOpen(false);
